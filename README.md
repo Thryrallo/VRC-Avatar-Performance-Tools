@@ -1,3 +1,5 @@
+# [Discord Server all my Assets](https://discord.thryrallo.de/)
+
 # VRCAvatarTools
  
 ## VRAM Checker
