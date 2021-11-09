@@ -1,4 +1,4 @@
-# [Discord Server all my Assets](https://discord.thryrallo.de/)
+# [Discord Server for all my Assets](https://discord.thryrallo.de/)
 
 # VRCAvatarTools
  
