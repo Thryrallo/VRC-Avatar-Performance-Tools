@@ -2,6 +2,12 @@
 
 # VRCAvatarTools
  
+## Avatar Evaluator
+Calculated and evaluates some avatar metric not currently taking into account by vrchats ranking system.
+1. VRAM Size
+2. Grabpasses
+3. Blendshapes
+ 
 ## VRAM Checker
 Calculates the VRAM the textures on your avatar use.
 Please use this to keep your VRAM usage down. High VRAM usage causes performance problems.
