@@ -16,11 +16,20 @@ namespace Thry.AvatarHelpers
 {
     public class TextureVRAM : EditorWindow
     {
-        [MenuItem("Thry/VRAM/Avatar")]
-        static void Init()
+        [MenuItem("Thry/Avatar/VRAM")]
+        public static void Init()
         {
             TextureVRAM window = (TextureVRAM)EditorWindow.GetWindow(typeof(TextureVRAM));
             window.titleContent = new GUIContent("VRAM Calculator");
+            window.Show();
+        }
+
+        public static void Init(GameObject avatar)
+        {
+            TextureVRAM window = (TextureVRAM)EditorWindow.GetWindow(typeof(TextureVRAM));
+            window.titleContent = new GUIContent("VRAM Calculator");
+            window.avatar = avatar;
+            window.Calc(avatar);
             window.Show();
         }
 
@@ -208,29 +217,29 @@ namespace Thry.AvatarHelpers
 
             if (EditorGUI.EndChangeCheck() && avatar != null)
             {
-                Calc();
+                Calc(avatar);
             }
 
             if (avatar != null)
             {
-                if (GUILayout.Button("Recalculate")) Calc();
+                if (GUILayout.Button("Recalculate")) Calc(avatar);
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
                 if (sizeAll > 200000000) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
                 else if (sizeAll > 100000000) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
                 else EditorGUILayout.HelpBox("Your avatar is in a good place regarding video memeory size.", MessageType.None);
-                EditorGUILayout.LabelField("Size (all): ", ToMebiByteString(sizeAll));
-                EditorGUILayout.LabelField("Size (only active): ", ToMebiByteString(sizeActive));
+                EditorGUILayout.LabelField("Size (all): ", AvatarEvaluator.ToMebiByteString(sizeAll));
+                EditorGUILayout.LabelField("Size (only active): ", AvatarEvaluator.ToMebiByteString(sizeActive));
 
                 EditorGUILayout.HelpBox("Inactive Objects are not unloaded. They are moved to system memory first if you run out of VRAM, " +
                 "so they are not as bad as active textures, but you should still try to keep their VRAM low.", MessageType.None);
 
-                EditorGUILayout.LabelField("If there were 40 of your avatar you would take up <b>" + ToMebiByteString(sizeAll * 40) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
-                EditorGUILayout.LabelField("If there were 80 of your avatar you would take up <b>" + ToMebiByteString(sizeAll * 80) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
+                EditorGUILayout.LabelField("If there were 40 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(sizeAll * 40) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
+                EditorGUILayout.LabelField("If there were 80 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(sizeAll * 80) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
                 //EditorGUILayout.LabelField("Size of 40 avatars:", );
 
-                if (texutesList == null) Calc();
+                if (texutesList == null) Calc(avatar);
                 if (texutesList != null)
                 {
                     EditorGUILayout.Space();
@@ -277,31 +286,17 @@ namespace Thry.AvatarHelpers
             }
         }
 
-        IEnumerable<Material>[] GetMaterials()
+        public static void GUI_Small_VRAM_Evaluation(long size, GameObject avatar)
         {
-            List<Material> materialsActive = avatar.GetComponentsInChildren<Renderer>(false).SelectMany(r => r.sharedMaterials).ToList();
-            List<Material> materialsAll = avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).ToList();
-#if VRC_SDK_VRCSDK3 && !UDON
-            //animation materials
-            VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
-            if (descriptor != null)
-            {
-                IEnumerable<AnimationClip> clips = descriptor.baseAnimationLayers.Select(l => l.animatorController).Where(a => a != null).SelectMany(a => a.animationClips).Distinct();
-                foreach (AnimationClip clip in clips)
-                {
-                    IEnumerable<Material> clipMaterials = AnimationUtility.GetObjectReferenceCurveBindings(clip).Where(b => b.isPPtrCurve && b.type.IsSubclassOf(typeof(Renderer)) && b.propertyName.StartsWith("m_Materials"))
-                        .SelectMany(b => AnimationUtility.GetObjectReferenceCurve(clip, b)).Select(r => r.value as Material);
-                    materialsAll.AddRange(clipMaterials);
-                }
-            }
-
-#endif
-            return new IEnumerable<Material>[] { materialsActive.Distinct(), materialsAll.Distinct() };
+            if (size > 200000000) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
+            else if (size > 100000000) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
         }
 
-        void Calc()
+        
+
+        static Dictionary<Texture, bool> GetTextures(GameObject avatar)
         {
-            IEnumerable<Material>[] materials = GetMaterials();
+            IEnumerable<Material>[] materials = AvatarEvaluator.GetMaterials(avatar);
             Dictionary<Texture, bool> textures = new Dictionary<Texture, bool>();
             foreach (Material m in materials[1])
             {
@@ -322,15 +317,37 @@ namespace Thry.AvatarHelpers
                     }
                 }
             }
+            return textures;
+        }
+
+        public static long QuickCalc(GameObject avatar)
+        {
+            Dictionary<Texture, bool> textures = GetTextures(avatar);
+            long size = 0;
+            foreach (KeyValuePair<Texture, bool> t in textures)
+                size += CalcSize(t.Key, t.Value).Item1;
+            IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
+            foreach (Mesh m in allMeshes)
+            {
+                if (m == null) continue;
+                size += Profiler.GetRuntimeMemorySizeLong(m);
+            }
+            return size;
+        }
+
+        public long Calc(GameObject avatar)
+        {
+            Dictionary<Texture, bool> textures = GetTextures(avatar);
             texutesList = new List<(Texture, string, long, bool)>();
             sizeAll = 0;
             sizeActive = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
             {
-                long bytesCount = CalcSize(t.Key, t.Value);
+                (long, string) textureInfo = CalcSize(t.Key, t.Value);
+                texutesList.Add( (t.Key, AvatarEvaluator.ToMebiByteString(textureInfo.Item1) + textureInfo.Item2, textureInfo.Item1, t.Value) );
 
-                if (t.Value) sizeActive += bytesCount;
-                sizeAll += bytesCount;
+                if (t.Value) sizeActive += textureInfo.Item1;
+                sizeAll += textureInfo.Item1;
             }
             texutesList.Sort((t1, t2) => t2.Item3.CompareTo(t1.Item3));
 
@@ -358,12 +375,14 @@ namespace Thry.AvatarHelpers
                 if (m.Value) sizeActive += bytes;
                 sizeAll += bytes;
 
-                meshesList.Add((m.Key, ToMebiByteString(bytes), bytes, m.Value));
+                meshesList.Add((m.Key, AvatarEvaluator.ToMebiByteString(bytes), bytes, m.Value));
             }
             meshesList.Sort((m1, m2) => m2.Item3.CompareTo(m1.Item3));
+
+            return sizeAll;
         }
 
-        long CalcSize(Texture t, bool addToList)
+        static (long,string) CalcSize(Texture t, bool addToList)
         {
             string add = "";
             long bytesCount = 0;
@@ -400,9 +419,7 @@ namespace Thry.AvatarHelpers
             }
             else if (t is RenderTexture)
             {
-                Debug.Log(t.name);
                 RenderTexture rt = t as RenderTexture;
-                Debug.Log(rt.format);
                 double mipmaps = 1;
                 for (int i = 0; i < rt.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
                 bytesCount = (long)((RT_BPP[rt.format] + rt.depth) * rt.width * rt.height * (rt.useMipMap ? mipmaps : 1) / 8);
@@ -411,25 +428,8 @@ namespace Thry.AvatarHelpers
             {
                 bytesCount = Profiler.GetRuntimeMemorySizeLong(t);
             }
-            texutesList.Add((t, ToMebiByteString(bytesCount) + add, bytesCount, addToList));
 
-            return bytesCount;
-        }
-
-        static string ToByteString(long l)
-        {
-            if (l < 1000) return l + " B";
-            if (l < 1000000) return (l / 1000f).ToString("n2") + " KB";
-            if (l < 1000000000) return (l / 1000000f).ToString("n2") + " MB";
-            else return (l / 1000000000f).ToString("n2") + " GB";
-        }
-
-        static string ToMebiByteString(long l)
-        {
-            if (l < Math.Pow(2, 10)) return l + " B";
-            if (l < Math.Pow(2, 20)) return (l / Math.Pow(2, 10)).ToString("n2") + " KiB";
-            if (l < Math.Pow(2, 30)) return (l / Math.Pow(2, 20)).ToString("n2") + " MiB";
-            else return (l / Math.Pow(2, 30)).ToString("n2") + " GiB";
+            return (bytesCount,add);
         }
     }
 }
