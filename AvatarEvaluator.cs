@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -43,6 +44,7 @@ namespace Thry.AvatarHelpers {
         ThryFormanceManager thryformanceManager;
         long vramSize = 0;
         int grabpassCount = 0;
+        int anyStateTransitions = 0;
         Shader[] shadersWithGrabpass;
         (SkinnedMeshRenderer, int)[] skinendMeshesWithBlendshapes;
         private void OnGUI()
@@ -138,7 +140,21 @@ namespace Thry.AvatarHelpers {
                     }
                 }
                 EditorGUILayout.EndFoldoutHeaderGroup();
-                
+
+                EditorGUILayout.Space();
+                DrawLine(1);
+                //Grabpasses
+                r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
+                GUI.Label(r, "Any State Transitions: ", EditorStyles.boldLabel);
+                r.x += 140;
+                GUI.Label(r, "" + anyStateTransitions);
+                EditorGUILayout.HelpBox("For each any state transition the conditons are checked every frame. " +
+                    "This makes them expensive compared to normal transitions and a large number of them can seriously impact the CPU usage. A healty limit is around 50 transitions.", MessageType.None);
+                if (anyStateTransitions > 150)
+                    EditorGUILayout.HelpBox("Reduce your any state transitions. At this amount the impact on the CPU is significant.", MessageType.Error);
+                else if (anyStateTransitions > 50)
+                    EditorGUILayout.HelpBox("Try to replace some of your any state transitions with normal transitions if possible.", MessageType.Warning);
+
                 EditorGUILayout.Space();
                 DrawLine(1);
 
@@ -160,9 +176,15 @@ namespace Thry.AvatarHelpers {
         void Evaluate()
         {
             vramSize = TextureVRAM.QuickCalc(avatar);
-            IEnumerable<Shader> shaders = AvatarEvaluator.GetMaterials(avatar)[1].Where(m => m!= null && m.shader != null).Select(m => m.shader).Distinct();
+            IEnumerable<Material> materials = GetMaterials(avatar)[1];
+            IEnumerable<Shader> shaders = materials.Where(m => m!= null && m.shader != null).Select(m => m.shader).Distinct();
             shadersWithGrabpass = shaders.Where(s => File.Exists(AssetDatabase.GetAssetPath(s)) &&  Regex.Match(File.ReadAllText(AssetDatabase.GetAssetPath(s)), @"GrabPass\s*{\s*""(\w|_)+""\s+}").Success ).ToArray();
             grabpassCount = shadersWithGrabpass.Count();
+#if VRC_SDK_VRCSDK3
+            VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
+            anyStateTransitions = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).Where(a => a != null).
+                SelectMany(a => (a as AnimatorController).layers).Select(l => l.stateMachine).Where(l => l != null).SelectMany(l => l.anyStateTransitions).Count();
+#endif
 
             skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();
         }
