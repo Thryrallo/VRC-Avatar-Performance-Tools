@@ -47,6 +47,13 @@ namespace Thry.AvatarHelpers {
         int anyStateTransitions = 0;
         Shader[] shadersWithGrabpass;
         (SkinnedMeshRenderer, int)[] skinendMeshesWithBlendshapes;
+
+        //write defaults
+        bool _writeDefault;
+        string[] _writeDefaultoutliers;
+
+        string[] _emptyStates;
+
         private void OnGUI()
         {
             if (!isGUIInit) InitGUI();
@@ -143,7 +150,7 @@ namespace Thry.AvatarHelpers {
 
                 EditorGUILayout.Space();
                 DrawLine(1);
-                //Grabpasses
+                //Any states
                 r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
                 GUI.Label(r, "Any State Transitions: ", EditorStyles.boldLabel);
                 r.x += 140;
@@ -154,6 +161,46 @@ namespace Thry.AvatarHelpers {
                     EditorGUILayout.HelpBox("Reduce your any state transitions. At this amount the impact on the CPU is significant.", MessageType.Error);
                 else if (anyStateTransitions > 50)
                     EditorGUILayout.HelpBox("Try to replace some of your any state transitions with normal transitions if possible.", MessageType.Warning);
+
+                EditorGUILayout.Space();
+                DrawLine(1);
+
+                //Write defaults
+                r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
+                GUI.Label(r, "Write Defaults: ", EditorStyles.boldLabel);
+                r.x += 140;
+                GUI.Label(r, "" + _writeDefault);
+                EditorGUILayout.HelpBox("Unity needs all states in your animator to have the same write default value: Either all off or all on. "+
+                    "If a state is marked with write default it means that the values animated by this state will be set to their default values when not in this state. " +
+                    "This can be useful to make compact toggles, but is very prohhibeting when making more complex systems." +
+                    "Click here for more information to animator states.", MessageType.None);
+                if (Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+                    Application.OpenURL("https://docs.unity3d.com/Manual/class-State.html");
+                if (_writeDefaultoutliers.Length > 0)
+                {
+                    EditorGUILayout.HelpBox("Not all of your states have the same write default value.", MessageType.Warning);
+                    EditorGUILayout.LabelField("Outliers", EditorStyles.boldLabel);
+                    foreach (string s in _writeDefaultoutliers)
+                        EditorGUILayout.LabelField(s);
+                }
+
+                EditorGUILayout.Space();
+                DrawLine(1);
+
+                //Empty states
+                r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
+                GUI.Label(r, "Empty States: ", EditorStyles.boldLabel);
+                r.x += 140;
+                GUI.Label(r, "" + _emptyStates.Length);
+                if (_emptyStates.Length > 0)
+                {
+                    EditorGUILayout.HelpBox("Some of your states do not have a motion. This might cause issues. " +
+                        "You can place an empty animation clip in them to prevent this.", MessageType.Warning);
+                    EditorGUILayout.LabelField("Outliers", EditorStyles.boldLabel);
+                    foreach (string s in _emptyStates)
+                        EditorGUILayout.LabelField(s);
+                }
+
 
                 EditorGUILayout.Space();
                 DrawLine(1);
@@ -182,8 +229,18 @@ namespace Thry.AvatarHelpers {
             grabpassCount = shadersWithGrabpass.Count();
 #if VRC_SDK_VRCSDK3
             VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
-            anyStateTransitions = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).Where(a => a != null).
-                SelectMany(a => (a as AnimatorController).layers).Select(l => l.stateMachine).Where(l => l != null).SelectMany(l => l.anyStateTransitions).Count();
+            IEnumerable<AnimatorStateMachine> statesMachines = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
+                Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Select(l => l.stateMachine).Where(l => l != null);
+            anyStateTransitions = statesMachines.SelectMany(l => l.anyStateTransitions).Count();
+            IEnumerable<(AnimatorState,string)> states = statesMachines.SelectMany(m => m.states.Select(s => (s.state, m.name+"/"+s.state.name)));
+
+            _emptyStates = states.Where(s => s.Item1.motion == null).Select(s => s.Item2).ToArray();
+
+            IEnumerable<(AnimatorState, string)> wdOn = states.Where(s => s.Item1.writeDefaultValues);
+            IEnumerable<(AnimatorState, string)> wdOff = states.Where(s => !s.Item1.writeDefaultValues);
+            _writeDefault = wdOn.Count() >= wdOff.Count();
+            if (_writeDefault) _writeDefaultoutliers = wdOff.Select(s => s.Item2).ToArray();
+            else _writeDefaultoutliers = wdOn.Select(s => s.Item2).ToArray();
 #endif
 
             skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();

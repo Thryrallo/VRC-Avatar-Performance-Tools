@@ -61,7 +61,9 @@ namespace Thry.AvatarHelpers
         { TextureImporterFormat.ETC2_RGBA8 , 8 },
         { TextureImporterFormat.ETC2_RGB4_PUNCHTHROUGH_ALPHA , 4 },
         { TextureImporterFormat.PVRTC_RGB2 , 2 },
-        { TextureImporterFormat.PVRTC_RGB4 , 4 }
+        { TextureImporterFormat.PVRTC_RGB4 , 4 },
+        { TextureImporterFormat.ARGB32 , 32 },
+        { TextureImporterFormat.ARGB16 , 16 }
     };
 
         static Dictionary<RenderTextureFormat, int> RT_BPP = new Dictionary<RenderTextureFormat, int>()
