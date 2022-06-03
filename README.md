@@ -8,6 +8,8 @@ Calculated and evaluates some avatar metric not currently taking into account by
 2. Grabpasses
 3. Blendshapes
 4. Any State transition counting
+5. Write default check
+6. Empty animator states check
  
 ## VRAM Checker
 Calculates the VRAM the textures on your avatar use.
