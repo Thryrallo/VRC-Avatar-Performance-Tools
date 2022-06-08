@@ -58,6 +58,7 @@ namespace Thry.AvatarHelpers {
         {
             if (!isGUIInit) InitGUI();
             EditorGUI.BeginChangeCheck();
+            EditorGUILayout.BeginScrollView();
             avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", avatar, typeof(GameObject), true);
             if (EditorGUI.EndChangeCheck() && avatar != null)
             {
