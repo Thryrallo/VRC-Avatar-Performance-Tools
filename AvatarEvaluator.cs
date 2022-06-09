@@ -39,6 +39,9 @@ namespace Thry.AvatarHelpers {
         GameObject avatar;
         bool grabpassesFoldout;
         bool blendshapeMeshesFoldout;
+        bool writeDefaultsFoldout;
+        bool emptyStatesFoldout;
+        Vector2 scrollPosition;
 
         //eval variables
         ThryFormanceManager thryformanceManager;
@@ -58,6 +61,7 @@ namespace Thry.AvatarHelpers {
         {
             if (!isGUIInit) InitGUI();
             EditorGUI.BeginChangeCheck();
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
             avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", avatar, typeof(GameObject), true);
             if (EditorGUI.EndChangeCheck() && avatar != null)
             {
@@ -179,9 +183,13 @@ namespace Thry.AvatarHelpers {
                 if (_writeDefaultoutliers.Length > 0)
                 {
                     EditorGUILayout.HelpBox("Not all of your states have the same write default value.", MessageType.Warning);
-                    EditorGUILayout.LabelField("Outliers", EditorStyles.boldLabel);
-                    foreach (string s in _writeDefaultoutliers)
-                        EditorGUILayout.LabelField(s);
+                    writeDefaultsFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(writeDefaultsFoldout, "Outliers", EditorStyles.foldout);
+                    if (writeDefaultsFoldout)
+                    {
+                        foreach (string s in _writeDefaultoutliers)
+                            EditorGUILayout.LabelField(s);
+                    }
+                    EditorGUILayout.EndFoldoutHeaderGroup();
                 }
 
                 EditorGUILayout.Space();
@@ -196,9 +204,13 @@ namespace Thry.AvatarHelpers {
                 {
                     EditorGUILayout.HelpBox("Some of your states do not have a motion. This might cause issues. " +
                         "You can place an empty animation clip in them to prevent this.", MessageType.Warning);
-                    EditorGUILayout.LabelField("Outliers", EditorStyles.boldLabel);
-                    foreach (string s in _emptyStates)
-                        EditorGUILayout.LabelField(s);
+                    emptyStatesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(emptyStatesFoldout, "Outliers", EditorStyles.foldout);
+                    if (emptyStatesFoldout)
+                    {
+                        foreach (string s in _emptyStates)
+                            EditorGUILayout.LabelField(s);
+                    }
+                    EditorGUILayout.EndFoldoutHeaderGroup();
                 }
 
 
@@ -211,6 +223,7 @@ namespace Thry.AvatarHelpers {
                 if (thryformanceManager == null) thryformanceManager = new ThryFormanceManager();
                 thryformanceManager.ThryFormanceGUI(r, avatar, this);
             }
+            EditorGUILayout.EndScrollView();
         }
         
         void DrawLine(int i_height)
