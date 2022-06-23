@@ -259,10 +259,25 @@ namespace Thry.AvatarHelpers {
             skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();
         }
 
+        public static List<GameObject> FilterEditorOnlyGameObjects(GameObject go)
+        {
+            List<GameObject> gos = new List<GameObject>();
+            foreach (Transform child in go.transform)
+            {
+                if (child.gameObject.tag != "EditorOnly")
+                {
+                    gos.Add(child.gameObject);
+                    gos.AddRange(FilterEditorOnlyGameObjects(child.gameObject));
+                }
+            }
+            return gos;
+        }
+
         public static IEnumerable<Material>[] GetMaterials(GameObject avatar)
         {
-            List<Material> materialsActive = avatar.GetComponentsInChildren<Renderer>(false).Where(r => r.gameObject.tag != "EditorOnly").SelectMany(r => r.sharedMaterials).ToList();
-            List<Material> materialsAll = avatar.GetComponentsInChildren<Renderer>(true).Where(r => r.gameObject.tag != "EditorOnly").SelectMany(r => r.sharedMaterials).ToList();
+            List<GameObject> gameObjects = FilterEditorOnlyGameObjects(avatar).ToList();
+            List<Material> materialsActive = gameObjects.Where(t => t.activeInHierarchy).Where(t => t.GetComponent<Renderer>() != null).SelectMany(t => t.GetComponent<Renderer>().sharedMaterials).ToList();
+            List<Material> materialsAll = gameObjects.Where(t => t.GetComponent<Renderer>() != null).SelectMany(t => t.GetComponent<Renderer>().sharedMaterials).ToList();
 #if VRC_SDK_VRCSDK3 && !UDON
             //animation materials
             VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
