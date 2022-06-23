@@ -261,8 +261,10 @@ namespace Thry.AvatarHelpers {
 
         public static IEnumerable<Material>[] GetMaterials(GameObject avatar)
         {
-            List<Material> materialsActive = avatar.GetComponentsInChildren<Renderer>(false).SelectMany(r => r.sharedMaterials).ToList();
-            List<Material> materialsAll = avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).ToList();
+            IEnumerable<Renderer> allBuiltRenderers = avatar.GetComponentsInChildren<Renderer>(true).Where(r => r.gameObject.GetComponentsInParent<Transform>(true).All(g => g.tag != "EditorOnly"));
+
+            List<Material> materialsActive = allBuiltRenderers.Where(r => r.gameObject.activeInHierarchy).SelectMany(r => r.sharedMaterials).ToList();
+            List<Material> materialsAll = allBuiltRenderers.SelectMany(r => r.sharedMaterials).ToList();
 #if VRC_SDK_VRCSDK3 && !UDON
             //animation materials
             VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
