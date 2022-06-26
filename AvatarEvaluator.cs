@@ -59,6 +59,12 @@ namespace Thry.AvatarHelpers {
 
         private void OnGUI()
         {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v0.2.1", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
+            if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
+                Application.OpenURL("https://twitter.com/thryrallo");
+            EditorGUILayout.Space();
+
             if (!isGUIInit) InitGUI();
             EditorGUI.BeginChangeCheck();
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
@@ -256,7 +262,7 @@ namespace Thry.AvatarHelpers {
             else _writeDefaultoutliers = wdOn.Select(s => s.Item2).ToArray();
 #endif
 
-            skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();
+            skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh != null && r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();
         }
 
         public static IEnumerable<Material>[] GetMaterials(GameObject avatar)
