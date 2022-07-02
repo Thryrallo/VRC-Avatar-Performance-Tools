@@ -309,6 +309,7 @@ namespace Thry.AvatarHelpers
                 {
                     Texture t = m.GetTexture(id);
                     if (t == null) continue;
+                    if (!m.HasProperty(id)) continue;
                     if (textures.ContainsKey(t))
                     {
                         if (textures[t] == false && isActive) textures[t] = true;
