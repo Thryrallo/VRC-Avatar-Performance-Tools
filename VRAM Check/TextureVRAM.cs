@@ -307,6 +307,7 @@ namespace Thry.AvatarHelpers
                 bool isActive = materials[0].Contains(m);
                 foreach (int id in textureIds)
                 {
+                    if (!m.HasProperty(id)) continue;
                     Texture t = m.GetTexture(id);
                     if (t == null) continue;
                     if (textures.ContainsKey(t))
