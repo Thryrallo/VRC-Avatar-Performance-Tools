@@ -1,6 +1,6 @@
 # [Discord Server for all my Assets](https://discord.thryrallo.de/)
 
-# VRCAvatarTools
+# Avatar-Performance-Tools
  
 ## Avatar Evaluator
 Calculated and evaluates some avatar metric not currently taking into account by vrchats ranking system.
