@@ -21,3 +21,7 @@ Please use this to keep your VRAM usage down. High VRAM usage causes performance
 
 - Includes materials from animations
 - Information Boxes regarding VRAM
+
+## Installing with UPM (Unity Package Manager)
+copy the git URL into the Unity Package Managers "Add Ppckage from Git URL..." field.
+`https://github.com/Thryrallo/VRC-Avatar-Performance-Tools.git`
