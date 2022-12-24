@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -60,7 +60,7 @@ namespace Thry.AvatarHelpers {
         private void OnGUI()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v0.2.1", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
+            EditorGUILayout.LabelField("<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v1.0.0", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
             if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
                 Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
