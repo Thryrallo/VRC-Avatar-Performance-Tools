@@ -11,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubun tu-latest
+    runs-on: ubuntu-latest
     steps:
     
       - name: Checkout
