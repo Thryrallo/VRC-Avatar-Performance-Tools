@@ -21,7 +21,7 @@ jobs:
         id: version
         uses: notiz-dev/github-action-json-property@7c8cf5cc36eb85d8d287a8086a39dac59628eb31
         with: 
-            path: "/package.json"
+            path: "./package.json"
             prop_path: "version"
     
       - name: Set Environment Variables
