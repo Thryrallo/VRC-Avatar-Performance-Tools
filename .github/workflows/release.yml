@@ -29,6 +29,12 @@ jobs:
         run: |
           echo "zipFile=${{ env.packageName }}-${{ steps.version.outputs.prop }}".zip >> $GITHUB_ENV
           echo "unityPackage=${{ env.packageName }}-${{ steps.version.outputs.prop }}.unitypackage" >> $GITHUB_ENV
+          
+      
+      - name: Create directory and move files
+        run: |
+          mkdir -p ${{env.packagePath}}
+          rsync -r --exclude="${{ env.packagePath }}" ./ "${{ env.packagePath }}"/
         
       - name: Create Zip
         uses: thedoctor0/zip-release@09336613be18a8208dfa66bd57efafd9e2685657
@@ -36,11 +42,6 @@ jobs:
           type: "zip"
           directory: "./"
           filename: "./${{env.zipFile}}" # make the zip file two directories up, since we start two directories in above
-      
-      - name: Create directory and move files
-        run: |
-          mkdir -p ${{env.packagePath}}
-          mv * ${{env.packagePath}}/
       
       - run: find "./" -name \*.meta >> metaList
           
