@@ -41,7 +41,7 @@ jobs:
       
       - run: mkdir -p ${{env.packagePath}} # create packages folder
           
-      - run: find "./" | xargs -0 mv -t ${{env.packagePath}} # move to new folder
+      - run: find "./" -print0 | xargs -0 mv -t ${{env.packagePath}} # move to new folder
       
       - run: find "./" -name \*.meta >> metaList
           
