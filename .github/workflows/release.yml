@@ -8,7 +8,7 @@ on:
 
 env:
   packageName: "de.thryrallo.vrc.avatar-performance-tools"
-  packagePath: Packages/${{env.zipFile}}
+  packagePath: "Packages/${{env.zipFile}}"
 
 jobs:
   build:
