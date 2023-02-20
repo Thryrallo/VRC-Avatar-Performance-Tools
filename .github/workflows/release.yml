@@ -4,10 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: main
-    paths: Packages/de.thryrallo.vrc.avatar-performance-tools/**
+    paths: ./
 
 env:
   packageName: "de.thryrallo.vrc.avatar-performance-tools"
+  packagePath: Packages/${{env.zipFile}}
 
 jobs:
   build:
@@ -37,13 +38,18 @@ jobs:
           filename: "./${{env.zipFile}}" # make the zip file two directories up, since we start two directories in above
           
       - run: find "./" -name \*.meta >> metaList
+      
+      - run: mkdir -p ${{env.packagePath}} # create packages folder
+      
+      - run: metaList >> xargs -0 mv -t ~/${{env.packagePath}} # move to new folder
+      
+      - run: find "./" -name \*.meta >> metaList
           
       - name: Create UnityPackage
         uses: pCYSl5EDgo/create-unitypackage@cfcd3cf0391a5ef1306342794866a9897c32af0b
         with:
           package-path: ${{ env.unityPackage }}
           include-files: metaList
-          project-folder: Packages/${{ env.packageName }}
         
         
       - name: Make Release
