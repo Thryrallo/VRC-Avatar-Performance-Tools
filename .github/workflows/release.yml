@@ -43,6 +43,7 @@ jobs:
         with:
           package-path: ${{ env.unityPackage }}
           include-files: metaList
+          project-folder: Packages/${{ env.packageName }}
         
         
       - name: Make Release
