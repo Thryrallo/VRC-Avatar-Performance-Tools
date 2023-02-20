@@ -36,10 +36,12 @@ jobs:
           type: "zip"
           directory: "./"
           filename: "./${{env.zipFile}}" # make the zip file two directories up, since we start two directories in above
+          
+      - run: pwd
       
       - run: mkdir -p ${{env.packagePath}} # create packages folder
           
-      - run: find "./" | xargs -0 mv -t ~/${{env.packagePath}} # move to new folder
+      - run: find "./" | xargs -0 mv -t ${{env.packagePath}} # move to new folder
       
       - run: find "./" -name \*.meta >> metaList
           
