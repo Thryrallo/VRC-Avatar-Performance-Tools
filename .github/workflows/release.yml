@@ -37,13 +37,11 @@ jobs:
           directory: "./"
           filename: "./${{env.zipFile}}" # make the zip file two directories up, since we start two directories in above
           
+      - run: find "./" -name \*.meta > metaList | xargs -0 mv -t ~/${{env.packagePath}} # move to new folder
+      
       - run: find "./" -name \*.meta >> metaList
       
       - run: mkdir -p ${{env.packagePath}} # create packages folder
-      
-      - run: metaList >> xargs -0 mv -t ~/${{env.packagePath}} # move to new folder
-      
-      - run: find "./" -name \*.meta >> metaList
           
       - name: Create UnityPackage
         uses: pCYSl5EDgo/create-unitypackage@cfcd3cf0391a5ef1306342794866a9897c32af0b
@@ -55,6 +53,7 @@ jobs:
       - name: Make Release
         uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
         with:
+          release_name: "APT ${{ steps.version.outputs.prop }}"
           tag_name: ${{ steps.version.outputs.prop }}
           files: |
             ${{ env.zipFile }}
