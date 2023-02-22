@@ -9,5 +9,6 @@
   },
   "legacyFolders": {},
   "legacyFiles": {},
-  "type": "tool"
+  "type": "tool",
+  "hideInEditor": false
 }
