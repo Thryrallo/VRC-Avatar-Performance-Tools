@@ -5,7 +5,6 @@
   "description": "Calculated and evaluates some avatar metric not currently taking into account by vrchats ranking system.\r\n\nMost prominently gives a breakdown over VRAM usage of different parts of the avatar.",
   "gitDependencies": {},
   "vpmDependencies": {
-    "com.vrchat.avatars": "3.1.10"
   },
   "legacyFolders": {},
   "legacyFiles": {},
