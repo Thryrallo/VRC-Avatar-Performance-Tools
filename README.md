@@ -23,7 +23,18 @@ Please use this to keep your VRAM usage down. High VRAM usage causes performance
 - Information Boxes regarding VRAM
 
 ## Installing with UPM (Unity Package Manager)
-copy the git URL into the Unity Package Managers "Add Ppckage from Git URL..." field.
+
+### Using OpenUPM
+to install the package using OpenUPM, follow the instructions in the top right of this page: https://openupm.com/packages/de.thryrallo.vrc.avatar-performance-tools/
+
+If you already have OpenUPM installed, use this command in your project:
+```sh
+openupm add de.thryrallo.vrc.avatar-performance-tools
+```
+
+
+### As git package
+copy the git URL into the Unity Package Managers "Add Package from Git URL..." field.
 
 `https://github.com/Thryrallo/VRC-Avatar-Performance-Tools.git`
 
