@@ -19,7 +19,7 @@ using VRC.SDK3.Avatars.Components;
 namespace Thry.AvatarHelpers {
     public class AvatarEvaluator : EditorWindow
     {
-        public const string VERSION = "1.2.0";
+        public const string VERSION = "1.2.1";
 
         [MenuItem("Thry/Avatar/Evaluator")]
         static void Init()
@@ -119,7 +119,7 @@ namespace Thry.AvatarHelpers {
         private void OnGUI()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField($"<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v{VERSION}", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
+            EditorGUILayout.LabelField($"<size=20><color=magenta>Thry's Avatar Evaluator</color></size> v{VERSION}", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
             if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
                 Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
