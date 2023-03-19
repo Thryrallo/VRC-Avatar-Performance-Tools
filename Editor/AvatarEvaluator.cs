@@ -19,7 +19,7 @@ using VRC.SDK3.Avatars.Components;
 namespace Thry.AvatarHelpers {
     public class AvatarEvaluator : EditorWindow
     {
-        public const string VERSION = "1.0.2";
+        public const string VERSION = "1.1.0";
 
         [MenuItem("Thry/Avatar/Evaluator")]
         static void Init()

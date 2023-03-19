@@ -33,7 +33,7 @@ namespace Thry.AvatarHelpers
         {
             TextureVRAM window = (TextureVRAM)EditorWindow.GetWindow(typeof(TextureVRAM));
             window.titleContent = new GUIContent("VRAM Calculator");
-            window.avatar = Selection.activeGameObject;
+            window._avatar = Selection.activeGameObject;
             window.Show();
         }
 
@@ -41,7 +41,7 @@ namespace Thry.AvatarHelpers
         {
             TextureVRAM window = (TextureVRAM)EditorWindow.GetWindow(typeof(TextureVRAM));
             window.titleContent = new GUIContent("VRAM Calculator");
-            window.avatar = avatar;
+            window._avatar = avatar;
             window.Calc(avatar);
             window.Show();
         }
@@ -217,21 +217,67 @@ namespace Thry.AvatarHelpers
             { VertexAttributeFormat.SInt32, 4},
         };
 
-        const long VRAM_EXCESSIVE_THRESHOLD = 150000000;
-        const long VRAM_WARNING_THRESHOLD = 100000000;
+        const long PC_TEXTURE_MEMORY_EXCELLENT_MB = 40;
+        const long PC_TEXTURE_MEMORY_GOOD_MB = 75;
+        const long PC_TEXTURE_MEMORY_MEDIUM_MB = 110;
+        const long PC_TEXTURE_MEMORY_POOR_MB = 150;
 
-        GameObject avatar;
-        long sizeActive;
-        long sizeAll;
-        long sizeAllTextures;
-        long sizeAllMeshes;
-        bool includeInactive = true;
-        List<(Texture, string, long, bool)> texturesList;
-        List<(Mesh, string, long, bool)> meshesList;
-        Vector2 scrollpos;
+        const long PC_MESH_MEMORY_EXCELLENT_MB = 20;
+        const long PC_MESH_MEMORY_GOOD_MB = 35;
+        const long PC_MESH_MEMORY_MEDIUM_MB = 55;
+        const long PC_MESH_MEMORY_POOR_MB = 80;
 
-        bool texturesFoldout;
-        bool meshesFoldout;
+        const long QUEST_TEXTURE_MEMORY_EXCELLENT_MB = 10;
+        const long QUEST_TEXTURE_MEMORY_GOOD_MB = 18;
+        const long QUEST_TEXTURE_MEMORY_MEDIUM_MB = 25;
+        const long QUEST_TEXTURE_MEMORY_POOR_MB = 40;
+
+        const long QUEST_MESH_MEMORY_EXCELLENT_MB = 5;
+        const long QUEST_MESH_MEMORY_GOOD_MB = 10;
+        const long QUEST_MESH_MEMORY_MEDIUM_MB = 15;
+        const long QUEST_MESH_MEMORY_POOR_MB = 25;
+
+        const string GUID_EXCELLENT_ICON = "644caf5607820c7418cf0d248b12f33b";
+        const string GUID_GOOD_ICON = "4109d4977ddfb6548b458318e220ac70";
+        const string GUID_MEDIUM_ICON = "9296abd40c7c1934cb668aae07b41c69";
+        const string GUID_POOR_ICON = "e561d0406779ab948b7f155498d101ee";
+        const string GUID_VERY_POOR_ICON = "2886eb1248200a94d9eaec82336fbbad";
+
+        struct TextureInfo
+        {
+            public Texture texture;
+            public string print;
+            public long size;
+            public bool isActive;
+            public int BPP;
+            public string format;
+            public bool hasAlpha;
+        }
+
+        struct MeshInfo
+        {
+            public Mesh mesh;
+            public string print;
+            public long size;
+            public bool isActive;
+        }
+
+        GameObject _avatar;
+        long _sizeActive;
+        long _sizeAll;
+        long _sizeAllTextures;
+        long _sizeAllMeshes;
+        Texture2D _icon_PCTextureMemory;
+        Texture2D _icon_QuestTextureMemory;
+        Texture2D _icon_PCMeshMemory;
+        Texture2D _icon_QuestMeshMemory;
+        bool _includeInactive = true;
+        List<TextureInfo> _texturesList;
+        List<MeshInfo> _meshesList;
+        Vector2 _scrollpos;
+
+        bool _texturesFoldout;
+        bool _meshesFoldout;
 
         private void OnGUI()
         {
@@ -253,59 +299,110 @@ namespace Thry.AvatarHelpers
 
             EditorGUILayout.LabelField("Input", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
-            avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", avatar, typeof(GameObject), true);
+            _avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", _avatar, typeof(GameObject), true);
 
-            if (EditorGUI.EndChangeCheck() && avatar != null)
+            if (EditorGUI.EndChangeCheck() && _avatar != null)
             {
-                Calc(avatar);
+                Calc(_avatar);
             }
 
-            if (avatar != null)
+            if (_avatar != null)
             {
                 if (GUILayout.Button("Recalculate"))
                 {
                     meshSizeCache.Clear();
-                    Calc(avatar);
+                    Calc(_avatar);
                 }
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
-                if (sizeAll > VRAM_EXCESSIVE_THRESHOLD) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
-                else if (sizeAll > VRAM_WARNING_THRESHOLD) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
-                else EditorGUILayout.HelpBox("Your avatar is in a good place regarding video memeory size.", MessageType.None);
-                EditorGUILayout.LabelField("Texture Memory: ", AvatarEvaluator.ToMebiByteString(sizeAllTextures));
-                EditorGUILayout.LabelField("Mesh Memory: ", AvatarEvaluator.ToMebiByteString(sizeAllMeshes));
+                // TODO
+                // if (_sizeAll > VRAM_EXCESSIVE_THRESHOLD) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
+                // else if (_sizeAll > VRAM_WARNING_THRESHOLD) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
+                // else EditorGUILayout.HelpBox("Your avatar is in a good place regarding video memeory size.", MessageType.None);
+
+                EditorGUILayout.BeginVertical();
+                    EditorGUILayout.BeginHorizontal(GUI.skin.box);
+                        EditorGUILayout.LabelField("Texture Memory: ", AvatarEvaluator.ToMebiByteString(_sizeAllTextures), GUILayout.Width(250));
+                        EditorGUILayout.LabelField("PC", GUILayout.Width(20));
+                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_PCTextureMemory);
+                        EditorGUILayout.LabelField("Quest", GUILayout.Width(40));
+                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_QuestTextureMemory);
+                        GUILayout.FlexibleSpace();
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.BeginHorizontal(GUI.skin.box);
+                        EditorGUILayout.LabelField("Mesh Memory: ", AvatarEvaluator.ToMebiByteString(_sizeAllMeshes), GUILayout.Width(250));
+                        EditorGUILayout.LabelField("PC", GUILayout.Width(20));
+                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_PCMeshMemory);
+                        EditorGUILayout.LabelField("Quest", GUILayout.Width(40));
+                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_QuestMeshMemory);
+                        GUILayout.FlexibleSpace();
+                    EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                
                 EditorGUILayout.Space(5);
-                EditorGUILayout.LabelField("Size (all): ", AvatarEvaluator.ToMebiByteString(sizeAll));
-                EditorGUILayout.LabelField("Size (only active): ", AvatarEvaluator.ToMebiByteString(sizeActive));
+                EditorGUILayout.BeginHorizontal(GUI.skin.box);
+                    EditorGUILayout.LabelField("Size (all): ", AvatarEvaluator.ToMebiByteString(_sizeAll));
+                    EditorGUILayout.LabelField("Size (only active): ", AvatarEvaluator.ToMebiByteString(_sizeActive));
+                EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.HelpBox("Inactive Objects are not unloaded. They are moved to system memory first if you run out of VRAM, " +
                 "so they are not as bad as active textures, but you should still try to keep their VRAM low.", MessageType.None);
 
-                EditorGUILayout.LabelField("If there were 40 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(sizeAll * 40) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
-                EditorGUILayout.LabelField("If there were 80 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(sizeAll * 80) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
+                EditorGUILayout.LabelField("If there were 40 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(_sizeAll * 40) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
+                EditorGUILayout.LabelField("If there were 80 of your avatar you would take up <b>" + AvatarEvaluator.ToMebiByteString(_sizeAll * 80) + "</b> of Video Memory.", new GUIStyle(EditorStyles.label) { richText = true, wordWrap = true });
                 //EditorGUILayout.LabelField("Size of 40 avatars:", );
 
-                if (texturesList == null) Calc(avatar);
-                if (texturesList != null)
+                if (_texturesList == null) Calc(_avatar);
+                if (_texturesList != null)
                 {
                     EditorGUILayout.Space();
 
                     EditorGUILayout.LabelField("Assets", EditorStyles.boldLabel);
-                    includeInactive = EditorGUILayout.ToggleLeft("Show assets of disabled Objects", includeInactive);
-                    scrollpos = EditorGUILayout.BeginScrollView(scrollpos);
+                    _includeInactive = EditorGUILayout.ToggleLeft("Show assets of disabled Objects", _includeInactive);
+                    _scrollpos = EditorGUILayout.BeginScrollView(_scrollpos);
 
                     EditorGUI.indentLevel += 2;
-                    texturesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(texturesFoldout, $"Textures  ({AvatarEvaluator.ToMebiByteString(sizeAllTextures)})");
-                    if (texturesFoldout)
+                    _texturesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_texturesFoldout, $"Textures  ({AvatarEvaluator.ToMebiByteString(_sizeAllTextures)})");
+                    if (_texturesFoldout)
                     {
-                        foreach ((Texture, string, long, bool) keyValue in texturesList)
+                        EditorGUILayout.HelpBox("The determining factor of texture VRAM size is the resolution of the texutre and the used compression format. " +
+                            "Both can be changed in the importer settings of each texture.\n\n" +
+                            "Resolution: View your avatar from ~1 meter away. Reduce the texture size until you see a noticable drop in quality.\n" +
+                            "Compression: BC7 or DXT5 for textures with alpha. DXT1 for images without alpha.\n\n"+
+                            "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
+                        EditorGUILayout.Space(5);
+
+                        foreach (TextureInfo texInfo in _texturesList)
                         {
-                            if (includeInactive || keyValue.Item4)
+                            if (_includeInactive || texInfo.isActive)
                             {
                                 EditorGUILayout.BeginHorizontal();
-                                EditorGUILayout.ObjectField(keyValue.Item1, typeof(Texture), false);
-                                EditorGUILayout.LabelField(keyValue.Item2);
+                                EditorGUILayout.ObjectField(texInfo.texture, typeof(Texture), false);
+                                EditorGUILayout.LabelField(texInfo.print, GUILayout.Width(100));
+                                EditorGUILayout.LabelField($"({texInfo.format})", GUILayout.Width(100));
+                                if(texInfo.texture is Texture2D && texInfo.hasAlpha ? texInfo.BPP > 8 : texInfo.BPP > 4)
+                                {
+                                    TextureImporterFormat newFormat = texInfo.hasAlpha ? TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
+                                    string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
+                                    if(GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200)))
+                                    {
+                                        TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+                                        importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+                                        {
+                                            name = "PC",
+                                            overridden = true,
+                                            format = newFormat,
+                                            maxTextureSize = texInfo.texture.width,
+                                            compressionQuality = 100
+                                        });
+                                        importer.SaveAndReimport();
+                                        Calc(_avatar);
+                                    }
+                                }else
+                                {
+                                    EditorGUILayout.GetControlRect(GUILayout.Width(200));
+                                }
                                 EditorGUILayout.EndHorizontal();
                             }
                         }
@@ -313,16 +410,16 @@ namespace Thry.AvatarHelpers
                     
                     EditorGUILayout.EndFoldoutHeaderGroup();
                     
-                    meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(sizeAllMeshes)})");
-                    if (meshesFoldout)
+                    _meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(_sizeAllMeshes)})");
+                    if (_meshesFoldout)
                     {
-                        foreach ((Mesh, string, long, bool) keyValue in meshesList)
+                        foreach (MeshInfo meshInfo in _meshesList)
                         {
-                            if (includeInactive || keyValue.Item4)
+                            if (_includeInactive || meshInfo.isActive)
                             {
                                 EditorGUILayout.BeginHorizontal();
-                                EditorGUILayout.ObjectField(keyValue.Item1, typeof(Mesh), false);
-                                EditorGUILayout.LabelField(keyValue.Item2);
+                                EditorGUILayout.ObjectField(meshInfo.mesh, typeof(Mesh), false);
+                                EditorGUILayout.LabelField(meshInfo.print);
                                 EditorGUILayout.EndHorizontal();
                             }
                         }
@@ -336,8 +433,9 @@ namespace Thry.AvatarHelpers
 
         public static void GUI_Small_VRAM_Evaluation(long size, GameObject avatar)
         {
-            if (size > VRAM_EXCESSIVE_THRESHOLD) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
-            else if (size > VRAM_WARNING_THRESHOLD) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
+            // TODO
+            // if (size > VRAM_EXCESSIVE_THRESHOLD) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
+            // else if (size > VRAM_WARNING_THRESHOLD) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
         }
 
         static Dictionary<Texture, bool> GetTextures(GameObject avatar)
@@ -372,12 +470,12 @@ namespace Thry.AvatarHelpers
             Dictionary<Texture, bool> textures = GetTextures(avatar);
             long size = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
-                size += CalcSize(t.Key, t.Value).Item1;
+                size += CalculateTextureSize(t.Key, t.Value).Item1;
             IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
             foreach (Mesh m in allMeshes)
             {
                 if (m == null) continue;
-                size += CalcSize(m);
+                size += CalculateMeshSize(m);
             }
             return size;
         }
@@ -385,20 +483,28 @@ namespace Thry.AvatarHelpers
         public long Calc(GameObject avatar)
         {
             Dictionary<Texture, bool> textures = GetTextures(avatar);
-            texturesList = new List<(Texture, string, long, bool)>();
-            sizeAll = 0;
-            sizeActive = 0;
-            sizeAllTextures = 0;
-            sizeAllMeshes = 0;
+            _texturesList = new List<TextureInfo>();
+            _sizeAll = 0;
+            _sizeActive = 0;
+            _sizeAllTextures = 0;
+            _sizeAllMeshes = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
             {
-                (long, string) textureInfo = CalcSize(t.Key, t.Value);
-                texturesList.Add( (t.Key, AvatarEvaluator.ToMebiByteString(textureInfo.Item1) + textureInfo.Item2, textureInfo.Item1, t.Value) );
-
-                if (t.Value) sizeActive += textureInfo.Item1;
-                sizeAllTextures += textureInfo.Item1;
+                (long size, string format, int BPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
+                TextureInfo texInfo = new TextureInfo();
+                texInfo.texture = t.Key;
+                texInfo.size = textureInfo.size;
+                texInfo.print = AvatarEvaluator.ToMebiByteString(textureInfo.size);
+                texInfo.format = textureInfo.format;
+                texInfo.BPP = textureInfo.BPP;
+                texInfo.hasAlpha = textureInfo.hasAlpha;
+                texInfo.isActive = t.Value;
+                _texturesList.Add(texInfo);
+                
+                if (t.Value) _sizeActive += textureInfo.Item1;
+                _sizeAllTextures += textureInfo.Item1;
             }
-            texturesList.Sort((t1, t2) => t2.Item3.CompareTo(t1.Item3));
+            _texturesList.Sort((t1, t2) => t2.size.CompareTo(t1.size));
 
             //Meshes
             Dictionary<Mesh, bool> meshes = new Dictionary<Mesh, bool>(); 
@@ -417,24 +523,49 @@ namespace Thry.AvatarHelpers
                     meshes.Add(m, isActive);
                 }
             }
-            meshesList = new List<(Mesh, string, long, bool)>();
+            _meshesList = new List<MeshInfo>();
             foreach(KeyValuePair<Mesh,bool> m in meshes)
             {
-                long bytes = CalcSize(m.Key);
-                if (m.Value) sizeActive += bytes;
-                sizeAllMeshes += bytes;
+                long bytes = CalculateMeshSize(m.Key);
+                if (m.Value) _sizeActive += bytes;
+                _sizeAllMeshes += bytes;
 
-                meshesList.Add((m.Key, AvatarEvaluator.ToMebiByteString(bytes), bytes, m.Value));
+                MeshInfo meshInfo = new MeshInfo();
+                meshInfo.mesh = m.Key;
+                meshInfo.size = bytes;
+                meshInfo.print = AvatarEvaluator.ToMebiByteString(bytes);
+                meshInfo.isActive = m.Value;
+                _meshesList.Add(meshInfo);
             }
-            meshesList.Sort((m1, m2) => m2.Item3.CompareTo(m1.Item3));
-            sizeAll = sizeAllTextures + sizeAllMeshes;
+            _meshesList.Sort((m1, m2) => m2.size.CompareTo(m1.size));
+            _sizeAll = _sizeAllTextures + _sizeAllMeshes;
 
-            return sizeAll;
+            // Assign textures
+            _icon_PCTextureMemory = GetIconForMemeorySize(_sizeAllTextures, PC_TEXTURE_MEMORY_EXCELLENT_MB, PC_TEXTURE_MEMORY_GOOD_MB, PC_TEXTURE_MEMORY_MEDIUM_MB, PC_TEXTURE_MEMORY_POOR_MB);
+            _icon_QuestTextureMemory = GetIconForMemeorySize(_sizeAllTextures, QUEST_TEXTURE_MEMORY_EXCELLENT_MB, QUEST_TEXTURE_MEMORY_GOOD_MB, QUEST_TEXTURE_MEMORY_MEDIUM_MB, QUEST_TEXTURE_MEMORY_POOR_MB);
+            _icon_PCMeshMemory = GetIconForMemeorySize(_sizeAllMeshes, PC_MESH_MEMORY_EXCELLENT_MB, PC_MESH_MEMORY_GOOD_MB, PC_MESH_MEMORY_MEDIUM_MB, PC_MESH_MEMORY_POOR_MB);
+            _icon_QuestMeshMemory = GetIconForMemeorySize(_sizeAllMeshes, QUEST_MESH_MEMORY_EXCELLENT_MB, QUEST_MESH_MEMORY_GOOD_MB, QUEST_MESH_MEMORY_MEDIUM_MB, QUEST_MESH_MEMORY_POOR_MB);
+
+            return _sizeAll;
+        }
+
+        static Texture2D GetIconForMemeorySize(long size, long excellent, long good, long medium, long poor)
+        {
+            string iconGuid = GUID_VERY_POOR_ICON;
+            if (size < excellent * 1000000)
+                iconGuid = GUID_EXCELLENT_ICON;
+            else if (size < good * 1000000)
+                iconGuid = GUID_GOOD_ICON;
+            else if (size < medium * 1000000)
+                iconGuid = GUID_MEDIUM_ICON;
+            else if (size < poor * 1000000)
+                iconGuid = GUID_POOR_ICON;
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(iconGuid));
         }
 
         static Dictionary<Mesh, long> meshSizeCache = new Dictionary<Mesh, long>();
 
-        static long CalcSize(Mesh mesh)
+        static long CalculateMeshSize(Mesh mesh)
         {
             if (meshSizeCache.ContainsKey(mesh))
                 return meshSizeCache[mesh];
@@ -479,10 +610,12 @@ namespace Thry.AvatarHelpers
             return bytes;
         }
 
-        static (long,string) CalcSize(Texture t, bool addToList)
+        static (long size, string format, int BPP, bool hasAlpha) CalculateTextureSize(Texture t, bool addToList)
         {
-            string add = "";
-            long bytesCount = 0;
+            string format = "";
+            int bpp = 0;
+            bool hasAlpha = false;
+            long size = 0;
 
             string path = AssetDatabase.GetAssetPath(t);
             if (t != null && path != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
@@ -496,13 +629,13 @@ namespace Thry.AvatarHelpers
                     if (textureFormat == TextureImporterFormat.AutomaticCompressed) textureFormat = textureImporter.GetAutomaticFormat("PC");
 #pragma warning restore CS0618
 
+                    hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
+
                     if (BPP.ContainsKey(textureFormat))
                     {
-                        add = "    (" + textureFormat + ")";
-                        double mipmaps = 1;
-                        for (int i = 0; i < t.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
-                        bytesCount = (long)(BPP[textureFormat] * t.width * t.height * (textureImporter.mipmapEnabled ? mipmaps : 1) / 8);
-                        //Debug.Log(bytesCount);
+                        format = textureFormat.ToString();
+                        bpp = BPP[textureFormat];
+                        size = TextureToBytesUsingBPP(t, BPP[textureFormat]);
                     }
                     else
                     {
@@ -511,22 +644,47 @@ namespace Thry.AvatarHelpers
                 }
                 else
                 {
-                    bytesCount = Profiler.GetRuntimeMemorySizeLong(t);
+                    size = Profiler.GetRuntimeMemorySizeLong(t);
+                    bpp = (int)(size * 8 / (t.width * t.height));
                 }
+            }
+            else if (t is RenderTexture)
+            {
+                RenderTexture rt = t as RenderTexture;
+                bpp = RT_BPP[rt.format] + rt.depth;
+                format = rt.format.ToString();
+                hasAlpha = rt.format == RenderTextureFormat.ARGB32 || rt.format == RenderTextureFormat.ARGBHalf || rt.format == RenderTextureFormat.ARGBFloat;
+                size = TextureToBytesUsingBPP(t, bpp);
+            }
+            else
+            {
+                size = Profiler.GetRuntimeMemorySizeLong(t);
+            }
+
+            return (size,format, bpp, hasAlpha);
+        }
+
+        static long TextureToBytesUsingBPP(Texture t, int bpp)
+        {
+            long bytes = 0;
+            if (t != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
+            {
+                double mipmaps = 1;
+                for (int i = 0; i < t.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
+                bytes = (long)(bpp * t.width * t.height * (t.mipmapCount > 1 ? mipmaps : 1) / 8);
             }
             else if (t is RenderTexture)
             {
                 RenderTexture rt = t as RenderTexture;
                 double mipmaps = 1;
                 for (int i = 0; i < rt.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
-                bytesCount = (long)((RT_BPP[rt.format] + rt.depth) * rt.width * rt.height * (rt.useMipMap ? mipmaps : 1) / 8);
+                bytes = (long)((RT_BPP[rt.format] + rt.depth) * rt.width * rt.height * (rt.useMipMap ? mipmaps : 1) / 8);
             }
             else
             {
-                bytesCount = Profiler.GetRuntimeMemorySizeLong(t);
+                bytes = Profiler.GetRuntimeMemorySizeLong(t);
             }
-
-            return (bytesCount,add);
+            return bytes;
         }
     }
 }
