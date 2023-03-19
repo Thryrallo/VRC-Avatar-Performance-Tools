@@ -244,6 +244,7 @@ namespace Thry.AvatarHelpers
             public long size;
             public bool isActive;
             public int BPP;
+            public int minBPP;
             public string format;
             public bool hasAlpha;
         }
@@ -375,13 +376,14 @@ namespace Thry.AvatarHelpers
                                 EditorGUILayout.ObjectField(texInfo.texture, typeof(Texture), false);
                                 EditorGUILayout.LabelField(texInfo.print, GUILayout.Width(100));
                                 EditorGUILayout.LabelField($"({texInfo.format})", GUILayout.Width(100));
-                                if(texInfo.texture is Texture2D && texInfo.hasAlpha ? texInfo.BPP > 8 : texInfo.BPP > 4)
+                                if(texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
                                 {
-                                    TextureImporterFormat newFormat = texInfo.hasAlpha ? TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
+                                    TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+                                    TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ? 
+                                        TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
                                     string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
                                     if(GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200)))
                                     {
-                                        TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
                                         importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
                                         {
                                             name = "PC",
@@ -423,13 +425,6 @@ namespace Thry.AvatarHelpers
                     EditorGUILayout.EndScrollView();
                 }
             }
-        }
-
-        public static void GUI_Small_VRAM_Evaluation(long size, GameObject avatar)
-        {
-            // TODO
-            // if (size > VRAM_EXCESSIVE_THRESHOLD) EditorGUILayout.HelpBox("Your avatar uses a lot of video memory. Please reduce the texture sizes or change the compression to prevent bottlenecking yourself and others.", MessageType.Error);
-            // else if (size > VRAM_WARNING_THRESHOLD) EditorGUILayout.HelpBox("Your avatar is still ok. Try not to add too many more big textures.", MessageType.Warning);
         }
 
         static Dictionary<Texture, bool> GetTextures(GameObject avatar)
@@ -484,13 +479,14 @@ namespace Thry.AvatarHelpers
             _sizeAllMeshes = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
             {
-                (long size, string format, int BPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
+                (long size, string format, int BPP, int minBPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
                 TextureInfo texInfo = new TextureInfo();
                 texInfo.texture = t.Key;
                 texInfo.size = textureInfo.size;
                 texInfo.print = AvatarEvaluator.ToMebiByteString(textureInfo.size);
                 texInfo.format = textureInfo.format;
                 texInfo.BPP = textureInfo.BPP;
+                texInfo.minBPP = textureInfo.minBPP;
                 texInfo.hasAlpha = textureInfo.hasAlpha;
                 texInfo.isActive = t.Value;
                 _texturesList.Add(texInfo);
@@ -620,10 +616,11 @@ namespace Thry.AvatarHelpers
             return bytes;
         }
 
-        static (long size, string format, int BPP, bool hasAlpha) CalculateTextureSize(Texture t, bool addToList)
+        static (long size, string format, int BPP, int minBPP, bool hasAlpha) CalculateTextureSize(Texture t, bool addToList)
         {
             string format = "";
             int bpp = 0;
+            int minBPP = 8;
             bool hasAlpha = false;
             long size = 0;
 
@@ -640,6 +637,7 @@ namespace Thry.AvatarHelpers
 #pragma warning restore CS0618
 
                     hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
+                    minBPP = (hasAlpha || textureImporter.textureType == TextureImporterType.NormalMap) ? 8 : 4;
 
                     if (BPP.ContainsKey(textureFormat))
                     {
@@ -671,7 +669,7 @@ namespace Thry.AvatarHelpers
                 size = Profiler.GetRuntimeMemorySizeLong(t);
             }
 
-            return (size,format, bpp, hasAlpha);
+            return (size,format, bpp, minBPP, hasAlpha);
         }
 
         static long TextureToBytesUsingBPP(Texture t, int bpp)
