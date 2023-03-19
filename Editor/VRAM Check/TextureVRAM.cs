@@ -236,8 +236,9 @@ namespace Thry.AvatarHelpers
         private void OnGUI()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("<size=20>Thry's Avatar VRAM Calculator</size> v0.2", new GUIStyle(EditorStyles.label) { richText = true, alignment= TextAnchor.MiddleCenter });
-
+            EditorGUILayout.LabelField($"<size=20><color=magenta>Thry's Avatar VRAM Calculator</color></size> v{AvatarEvaluator.VERSION}", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
+            if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
+                Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
 
             EditorGUILayout.LabelField("Information", EditorStyles.boldLabel);

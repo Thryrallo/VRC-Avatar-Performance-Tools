@@ -19,6 +19,8 @@ using VRC.SDK3.Avatars.Components;
 namespace Thry.AvatarHelpers {
     public class AvatarEvaluator : EditorWindow
     {
+        public const string VERSION = "1.0.2";
+
         [MenuItem("Thry/Avatar/Evaluator")]
         static void Init()
         {
@@ -27,11 +29,22 @@ namespace Thry.AvatarHelpers {
             window.Show();
         }
 
+        [MenuItem("GameObject/Thry/Avatar/Evaluator", true, 0)]
+        static bool CanShowFromSelection() => Selection.activeGameObject != null;
+
+        [MenuItem("GameObject/Thry/Avatar/Evaluator", false, 0)]
+        public static void ShowFromSelection()
+        {
+            AvatarEvaluator window = (AvatarEvaluator)EditorWindow.GetWindow(typeof(AvatarEvaluator));
+            window.titleContent = new GUIContent("Avatar Calculator");
+            window.avatar = Selection.activeGameObject;
+            window.Show();
+        }
+
         bool isGUIInit = false;
         void InitGUI()
         {
             if (avatar != null) Evaluate();
-            thryformanceManager = new ThryFormanceManager();
             isGUIInit = true;
         }
 
@@ -44,7 +57,6 @@ namespace Thry.AvatarHelpers {
         Vector2 scrollPosition;
 
         //eval variables
-        ThryFormanceManager thryformanceManager;
         long vramSize = 0;
         int grabpassCount = 0;
         int anyStateTransitions = 0;
@@ -60,7 +72,7 @@ namespace Thry.AvatarHelpers {
         private void OnGUI()
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v1.0.0", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
+            EditorGUILayout.LabelField($"<size=20><color=magenta>Thry's Avatar Avatar Evaluator</color></size> v{VERSION}", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
             if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
                 Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
@@ -72,7 +84,6 @@ namespace Thry.AvatarHelpers {
             if (EditorGUI.EndChangeCheck() && avatar != null)
             {
                 Evaluate();
-                thryformanceManager = new ThryFormanceManager();
             }
 
             if (avatar == null)
@@ -85,7 +96,6 @@ namespace Thry.AvatarHelpers {
                 {
                     avatar = avatars.First().gameObject;
                     Evaluate();
-                    thryformanceManager = new ThryFormanceManager();
                 }
 #endif
             }
@@ -218,16 +228,6 @@ namespace Thry.AvatarHelpers {
                     }
                     EditorGUILayout.EndFoldoutHeaderGroup();
                 }
-
-
-                EditorGUILayout.Space();
-                DrawLine(1);
-
-                GUILayout.Label("Very Experimental and Speculative Features", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("These are some benchmarking tools i toyed with. They try to benchmark avatars/materials in comparision to a reference." +
-                    "I don't recommend you go by these metric for anything, but it might be interesting for some of you to play with, which is why i leave them in.", MessageType.None);
-                if (thryformanceManager == null) thryformanceManager = new ThryFormanceManager();
-                thryformanceManager.ThryFormanceGUI(r, avatar, this);
             }
             EditorGUILayout.EndScrollView();
         }
