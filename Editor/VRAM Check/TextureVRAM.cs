@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Profiling;
 #if VRC_SDK_VRCSDK3 && !UDON
@@ -198,6 +199,24 @@ namespace Thry.AvatarHelpers
             { RenderTextureFormat.R16 , 16 }
         };
 
+        static Dictionary<VertexAttributeFormat, int> VertexAttributeByteSize = new Dictionary<VertexAttributeFormat, int>()
+        {
+            { VertexAttributeFormat.UNorm8, 1},
+            { VertexAttributeFormat.SNorm8, 1},
+            { VertexAttributeFormat.UInt8, 1},
+            { VertexAttributeFormat.SInt8, 1},
+
+            { VertexAttributeFormat.UNorm16, 2},
+            { VertexAttributeFormat.SNorm16, 2},
+            { VertexAttributeFormat.UInt16, 2},
+            { VertexAttributeFormat.SInt16, 2},
+            { VertexAttributeFormat.Float16, 2},
+
+            { VertexAttributeFormat.Float32, 4},
+            { VertexAttributeFormat.UInt32, 4},
+            { VertexAttributeFormat.SInt32, 4},
+        };
+
         const long VRAM_EXCESSIVE_THRESHOLD = 150000000;
         const long VRAM_WARNING_THRESHOLD = 100000000;
 
@@ -242,7 +261,11 @@ namespace Thry.AvatarHelpers
 
             if (avatar != null)
             {
-                if (GUILayout.Button("Recalculate")) Calc(avatar);
+                if (GUILayout.Button("Recalculate"))
+                {
+                    meshSizeCache.Clear();
+                    Calc(avatar);
+                }
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
@@ -353,7 +376,7 @@ namespace Thry.AvatarHelpers
             foreach (Mesh m in allMeshes)
             {
                 if (m == null) continue;
-                size += Profiler.GetRuntimeMemorySizeLong(m);
+                size += CalcSize(m);
             }
             return size;
         }
@@ -396,7 +419,7 @@ namespace Thry.AvatarHelpers
             meshesList = new List<(Mesh, string, long, bool)>();
             foreach(KeyValuePair<Mesh,bool> m in meshes)
             {
-                long bytes = Profiler.GetRuntimeMemorySizeLong(m.Key);
+                long bytes = CalcSize(m.Key);
                 if (m.Value) sizeActive += bytes;
                 sizeAllMeshes += bytes;
 
@@ -406,6 +429,53 @@ namespace Thry.AvatarHelpers
             sizeAll = sizeAllTextures + sizeAllMeshes;
 
             return sizeAll;
+        }
+
+        static Dictionary<Mesh, long> meshSizeCache = new Dictionary<Mesh, long>();
+
+        static long CalcSize(Mesh mesh)
+        {
+            if (meshSizeCache.ContainsKey(mesh))
+                return meshSizeCache[mesh];
+            
+            long bytes = 0;
+
+            var vertexAttributes = mesh.GetVertexAttributes();
+            long vertexAttributeVRAMSize = 0;
+            foreach (var vertexAttribute in vertexAttributes)
+            {
+                int skinnedMeshPositionNormalTangentMultiplier = 1;
+                // skinned meshes have 2x the amount of position, normal and tangent data since they store both the un-skinned and skinned data in VRAM
+                if (mesh.HasVertexAttribute(VertexAttribute.BlendIndices) && mesh.HasVertexAttribute(VertexAttribute.BlendWeight) &&
+                    (vertexAttribute.attribute == VertexAttribute.Position || vertexAttribute.attribute == VertexAttribute.Normal || vertexAttribute.attribute == VertexAttribute.Tangent))
+                    skinnedMeshPositionNormalTangentMultiplier = 2;
+                vertexAttributeVRAMSize += VertexAttributeByteSize[vertexAttribute.format] * vertexAttribute.dimension * skinnedMeshPositionNormalTangentMultiplier;
+            }
+            var deltaPositions = new Vector3[mesh.vertexCount];
+            var deltaNormals = new Vector3[mesh.vertexCount];
+            var deltaTangents = new Vector3[mesh.vertexCount];
+            long blendShapeVRAMSize = 0;
+            for (int i = 0; i < mesh.blendShapeCount; i++)
+            {
+                var blendShapeName = mesh.GetBlendShapeName(i);
+                var blendShapeFrameCount = mesh.GetBlendShapeFrameCount(i);
+                for (int j = 0; j < blendShapeFrameCount; j++)
+                {
+                    mesh.GetBlendShapeFrameVertices(i, j, deltaPositions, deltaNormals, deltaTangents);
+                    for (int k = 0; k < deltaPositions.Length; k++)
+                    {
+                        if (deltaPositions[k] != Vector3.zero || deltaNormals[k] != Vector3.zero || deltaTangents[k] != Vector3.zero)
+                        {
+                            // every affected vertex has 1 uint for the index, 3 floats for the position, 3 floats for the normal and 3 floats for the tangent
+                            // this is true even if all normals or tangents in all blend shapes are zero
+                            blendShapeVRAMSize += 40;
+                        }
+                    }
+                }
+            }
+            bytes = vertexAttributeVRAMSize * mesh.vertexCount + blendShapeVRAMSize;
+            meshSizeCache[mesh] = bytes;
+            return bytes;
         }
 
         static (long,string) CalcSize(Texture t, bool addToList)
