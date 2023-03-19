@@ -237,12 +237,6 @@ namespace Thry.AvatarHelpers
         const long QUEST_MESH_MEMORY_MEDIUM_MB = 15;
         const long QUEST_MESH_MEMORY_POOR_MB = 25;
 
-        const string GUID_EXCELLENT_ICON = "644caf5607820c7418cf0d248b12f33b";
-        const string GUID_GOOD_ICON = "4109d4977ddfb6548b458318e220ac70";
-        const string GUID_MEDIUM_ICON = "9296abd40c7c1934cb668aae07b41c69";
-        const string GUID_POOR_ICON = "e561d0406779ab948b7f155498d101ee";
-        const string GUID_VERY_POOR_ICON = "2886eb1248200a94d9eaec82336fbbad";
-
         struct TextureInfo
         {
             public Texture texture;
@@ -267,10 +261,10 @@ namespace Thry.AvatarHelpers
         long _sizeAll;
         long _sizeAllTextures;
         long _sizeAllMeshes;
-        Texture2D _icon_PCTextureMemory;
-        Texture2D _icon_QuestTextureMemory;
-        Texture2D _icon_PCMeshMemory;
-        Texture2D _icon_QuestMeshMemory;
+        AvatarEvaluator.Quality _pcTextureQuality;
+        AvatarEvaluator.Quality _questTextureQuality;
+        AvatarEvaluator.Quality _pcMeshQuality;
+        AvatarEvaluator.Quality _questMeshQuality;
         bool _includeInactive = true;
         List<TextureInfo> _texturesList;
         List<MeshInfo> _meshesList;
@@ -325,17 +319,17 @@ namespace Thry.AvatarHelpers
                     EditorGUILayout.BeginHorizontal(GUI.skin.box);
                         EditorGUILayout.LabelField("Texture Memory: ", AvatarEvaluator.ToMebiByteString(_sizeAllTextures), GUILayout.Width(250));
                         EditorGUILayout.LabelField("PC", GUILayout.Width(20));
-                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_PCTextureMemory);
+                        AvatarEvaluator.DrawQualityIcon(_pcTextureQuality);
                         EditorGUILayout.LabelField("Quest", GUILayout.Width(40));
-                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_QuestTextureMemory);
+                        AvatarEvaluator.DrawQualityIcon(_questTextureQuality);         
                         GUILayout.FlexibleSpace();
                     EditorGUILayout.EndHorizontal();
                     EditorGUILayout.BeginHorizontal(GUI.skin.box);
                         EditorGUILayout.LabelField("Mesh Memory: ", AvatarEvaluator.ToMebiByteString(_sizeAllMeshes), GUILayout.Width(250));
                         EditorGUILayout.LabelField("PC", GUILayout.Width(20));
-                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_PCMeshMemory);
+                        AvatarEvaluator.DrawQualityIcon(_pcMeshQuality);
                         EditorGUILayout.LabelField("Quest", GUILayout.Width(40));
-                        GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), _icon_QuestMeshMemory);
+                        AvatarEvaluator.DrawQualityIcon(_questMeshQuality);
                         GUILayout.FlexibleSpace();
                     EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
@@ -540,27 +534,43 @@ namespace Thry.AvatarHelpers
             _meshesList.Sort((m1, m2) => m2.size.CompareTo(m1.size));
             _sizeAll = _sizeAllTextures + _sizeAllMeshes;
 
-            // Assign textures
-            _icon_PCTextureMemory = GetIconForMemeorySize(_sizeAllTextures, PC_TEXTURE_MEMORY_EXCELLENT_MB, PC_TEXTURE_MEMORY_GOOD_MB, PC_TEXTURE_MEMORY_MEDIUM_MB, PC_TEXTURE_MEMORY_POOR_MB);
-            _icon_QuestTextureMemory = GetIconForMemeorySize(_sizeAllTextures, QUEST_TEXTURE_MEMORY_EXCELLENT_MB, QUEST_TEXTURE_MEMORY_GOOD_MB, QUEST_TEXTURE_MEMORY_MEDIUM_MB, QUEST_TEXTURE_MEMORY_POOR_MB);
-            _icon_PCMeshMemory = GetIconForMemeorySize(_sizeAllMeshes, PC_MESH_MEMORY_EXCELLENT_MB, PC_MESH_MEMORY_GOOD_MB, PC_MESH_MEMORY_MEDIUM_MB, PC_MESH_MEMORY_POOR_MB);
-            _icon_QuestMeshMemory = GetIconForMemeorySize(_sizeAllMeshes, QUEST_MESH_MEMORY_EXCELLENT_MB, QUEST_MESH_MEMORY_GOOD_MB, QUEST_MESH_MEMORY_MEDIUM_MB, QUEST_MESH_MEMORY_POOR_MB);
+            // Assign quality
+            _pcTextureQuality = GetTextureQuality(_sizeAllTextures, false);
+            _pcMeshQuality = GetMeshQuality(_sizeAllMeshes, false);
+            _questTextureQuality = GetTextureQuality(_sizeAllTextures, true);
+            _questMeshQuality = GetMeshQuality(_sizeAllMeshes, true);
 
             return _sizeAll;
         }
 
-        static Texture2D GetIconForMemeorySize(long size, long excellent, long good, long medium, long poor)
+        public static AvatarEvaluator.Quality GetTextureQuality(long size, bool quest)
         {
-            string iconGuid = GUID_VERY_POOR_ICON;
+            if (quest)
+                return GetQuality(size, QUEST_TEXTURE_MEMORY_EXCELLENT_MB, QUEST_TEXTURE_MEMORY_GOOD_MB, QUEST_TEXTURE_MEMORY_MEDIUM_MB, QUEST_TEXTURE_MEMORY_POOR_MB);
+            else
+                return GetQuality(size, PC_TEXTURE_MEMORY_EXCELLENT_MB, PC_TEXTURE_MEMORY_GOOD_MB, PC_TEXTURE_MEMORY_MEDIUM_MB, PC_TEXTURE_MEMORY_POOR_MB);
+        }
+
+        public static AvatarEvaluator.Quality GetMeshQuality(long size, bool quest)
+        {
+            if (quest)
+                return GetQuality(size, QUEST_MESH_MEMORY_EXCELLENT_MB, QUEST_MESH_MEMORY_GOOD_MB, QUEST_MESH_MEMORY_MEDIUM_MB, QUEST_MESH_MEMORY_POOR_MB);
+            else
+                return GetQuality(size, PC_MESH_MEMORY_EXCELLENT_MB, PC_MESH_MEMORY_GOOD_MB, PC_MESH_MEMORY_MEDIUM_MB, PC_MESH_MEMORY_POOR_MB);
+        }
+
+        static AvatarEvaluator.Quality GetQuality(long size, long excellent, long good, long medium, long poor)
+        {
             if (size < excellent * 1000000)
-                iconGuid = GUID_EXCELLENT_ICON;
+                return AvatarEvaluator.Quality.Excellent;
             else if (size < good * 1000000)
-                iconGuid = GUID_GOOD_ICON;
+                return AvatarEvaluator.Quality.Good;
             else if (size < medium * 1000000)
-                iconGuid = GUID_MEDIUM_ICON;
+                return AvatarEvaluator.Quality.Medium;
             else if (size < poor * 1000000)
-                iconGuid = GUID_POOR_ICON;
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(iconGuid));
+                return AvatarEvaluator.Quality.Poor;
+            else
+                return AvatarEvaluator.Quality.VeryPoor;
         }
 
         static Dictionary<Mesh, long> meshSizeCache = new Dictionary<Mesh, long>();

@@ -19,7 +19,7 @@ using VRC.SDK3.Avatars.Components;
 namespace Thry.AvatarHelpers {
     public class AvatarEvaluator : EditorWindow
     {
-        public const string VERSION = "1.1.0";
+        public const string VERSION = "1.2.0";
 
         [MenuItem("Thry/Avatar/Evaluator")]
         static void Init()
@@ -37,31 +37,78 @@ namespace Thry.AvatarHelpers {
         {
             AvatarEvaluator window = (AvatarEvaluator)EditorWindow.GetWindow(typeof(AvatarEvaluator));
             window.titleContent = new GUIContent("Avatar Calculator");
-            window.avatar = Selection.activeGameObject;
+            window._avatar = Selection.activeGameObject;
             window.Show();
         }
 
-        bool isGUIInit = false;
+        public const string GUID_EXCELLENT_ICON = "644caf5607820c7418cf0d248b12f33b";
+        public const string GUID_GOOD_ICON = "4109d4977ddfb6548b458318e220ac70";
+        public const string GUID_MEDIUM_ICON = "9296abd40c7c1934cb668aae07b41c69";
+        public const string GUID_POOR_ICON = "e561d0406779ab948b7f155498d101ee";
+        public const string GUID_VERY_POOR_ICON = "2886eb1248200a94d9eaec82336fbbad";
+
+        public enum Quality { Excellent, Good, Medium, Poor, VeryPoor }
+
+        static Texture2D ICON_EXCELLENT => AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(GUID_EXCELLENT_ICON));
+        static Texture2D ICON_GOOD => AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(GUID_GOOD_ICON));
+        static Texture2D ICON_MEDIUM => AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(GUID_MEDIUM_ICON));
+        static Texture2D ICON_POOR => AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(GUID_POOR_ICON));
+        static Texture2D ICON_VERY_POOR => AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(GUID_VERY_POOR_ICON)); 
+
+        const int GRABPASS_LIMIT_EXCELLENT = 0;
+        const int GRABPASS_LIMIT_MEDIUM = 1;
+
+        const int BLENDSHAPE_DATA_LIMIT_EXCELLENT = 500000;
+        const int BLENDSHAPE_DATA_LIMIT_GOOD = 1000000;
+        const int BLENDSHAPE_DATA_LIMIT_MEDIUM = 2000000;
+        const int BLENDSHAPE_DATA_LIMIT_POOR = 3000000;
+
+        const int ANYSTATE_LIMIT_EXCELLENT = 50;
+        const int ANYSTATE_LIMIT_GOOD = 80;
+        const int ANYSTATE_LIMIT_MEDIUM = 100;
+        const int ANYSTATE_LIMIT_POOR = 150;
+
+        const int LAYER_LIMIT_EXCELLENT = 12;
+        const int LAYER_LIMIT_GOOD = 20;
+        const int LAYER_LIMIT_MEDIUM = 30;
+        const int LAYER_LIMIT_POOR = 45;
+
+        bool _isGUIInit = false;
         void InitGUI()
         {
-            if (avatar != null) Evaluate();
-            isGUIInit = true;
+            if (_avatar != null) Evaluate();
+            _isGUIInit = true;
         }
 
         //ui variables
-        GameObject avatar;
-        bool grabpassesFoldout;
-        bool blendshapeMeshesFoldout;
-        bool writeDefaultsFoldout;
-        bool emptyStatesFoldout;
-        Vector2 scrollPosition;
+        GameObject _avatar;
+        bool _writeDefaultsFoldout;
+        bool _emptyStatesFoldout;
+        Vector2 _scrollPosition;
 
         //eval variables
-        long vramSize = 0;
-        int grabpassCount = 0;
-        int anyStateTransitions = 0;
-        Shader[] shadersWithGrabpass;
-        (SkinnedMeshRenderer, int)[] skinendMeshesWithBlendshapes;
+        long _vramSize = 0;
+        Quality _vramQuality = Quality.Excellent;
+
+        int _grabpassCount = 0;
+        Quality _grabpassQuality = Quality.Excellent;
+        bool _grabpassFoldout = false;
+
+        (SkinnedMeshRenderer renderer, int verticies, int blendshapeCount)[] _skinendMeshesWithBlendshapes;
+        long _totalBlendshapeVerticies = 0;
+        long _totalBlendshapeData = 0;
+        Quality _blendshapeQuality = Quality.Excellent;
+        bool _blendshapeFoldout;
+
+        int _anyStateTransitions = 0;
+        Quality _anyStateTransitionsQuality = Quality.Excellent;
+        bool _anyStateFoldout = false;
+
+        int _layerCount = 0;
+        Quality _layerCountQuality = Quality.Excellent;
+        bool _layerCountFoldout = false;
+
+        Shader[] _shadersWithGrabpass;
 
         //write defaults
         bool _writeDefault;
@@ -77,16 +124,16 @@ namespace Thry.AvatarHelpers {
                 Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
 
-            if (!isGUIInit) InitGUI();
+            if (!_isGUIInit) InitGUI();
             EditorGUI.BeginChangeCheck();
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", avatar, typeof(GameObject), true);
-            if (EditorGUI.EndChangeCheck() && avatar != null)
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
+            _avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", _avatar, typeof(GameObject), true);
+            if (EditorGUI.EndChangeCheck() && _avatar != null)
             {
                 Evaluate();
             }
 
-            if (avatar == null)
+            if (_avatar == null)
             {
 #if VRC_SDK_VRCSDK3 && !UDON
                 IEnumerable<VRCAvatarDescriptor> avatars = new List<VRCAvatarDescriptor>();
@@ -94,71 +141,55 @@ namespace Thry.AvatarHelpers {
                     avatars = avatars.Concat( EditorSceneManager.GetSceneAt(i).GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<VRCAvatarDescriptor>()).Where( d => d.gameObject.activeInHierarchy) );
                 if(avatars.Count() > 0)
                 {
-                    avatar = avatars.First().gameObject;
+                    _avatar = avatars.First().gameObject;
                     Evaluate();
                 }
 #endif
             }
 
-            if (avatar != null)
+            if (_avatar != null)
             {
                 if (GUILayout.Button("Recalculate")) Evaluate();
-                if (shadersWithGrabpass == null) Evaluate();
-                if (skinendMeshesWithBlendshapes == null) Evaluate();
+                if (_shadersWithGrabpass == null) Evaluate();
+                if (_skinendMeshesWithBlendshapes == null) Evaluate();
                 EditorGUILayout.Space();
                 DrawLine(1);
                 //VRAM
-                Rect r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
-                GUI.Label(r, "VRAM:", EditorStyles.boldLabel);
-                r.x += 60;
-                GUI.Label(r, ToMebiByteString(vramSize));
-                r.x += r.width - 150 - 60;
-                r.width = 150;
-                if (GUI.Button(r, "More details")) TextureVRAM.Init(avatar);
+                if(DrawSection(_vramQuality, "VRAM", ToMebiByteString(_vramSize), false))
+                    TextureVRAM.Init(_avatar);
 
-                TextureVRAM.GUI_Small_VRAM_Evaluation(vramSize, avatar);
+                Rect r;
 
-                EditorGUILayout.Space();
-                DrawLine(1);
                 //Grabpasses
-                r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
-                GUI.Label(r, "Grabpasses: ", EditorStyles.boldLabel);
-                r.x += 100;
-                GUI.Label(r, "" + grabpassCount);
-
-                EditorGUILayout.HelpBox("Grabpasses are very expensive. They save your whole screen at a certain point in the rendering process to use it as a texture in the shader.", MessageType.None);
-                if (grabpassCount > 1)
-                    EditorGUILayout.HelpBox("Reduce your Grabpasses. Any more than 1 is excessive.", MessageType.Error);
-                else if(grabpassCount > 0)
-                    EditorGUILayout.HelpBox("If the effect from using the Grabpass is minimal you should consider removing it.", MessageType.Warning);
-                if (grabpassCount > 0)
+                _grabpassFoldout = DrawSection(_grabpassQuality, "Grabpasses", _grabpassCount.ToString(), _grabpassFoldout);
+                if(_grabpassFoldout)
                 {
-                    grabpassesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(grabpassesFoldout, "Shaders with Grabpasses", EditorStyles.foldout);
-                    if (grabpassesFoldout)
-                        foreach (Shader s in shadersWithGrabpass)
+                    EditorGUILayout.HelpBox("Grabpasses are very expensive. They save your whole screen at a certain point in the rendering process to use it as a texture in the shader.", MessageType.None);
+                    if (_grabpassCount > 0)
+                    {
+                        foreach (Shader s in _shadersWithGrabpass)
                             EditorGUILayout.ObjectField(s, typeof(Shader), false);
-                    EditorGUILayout.EndFoldoutHeaderGroup();
+                    }
                 }
                 //Blendshapes
-
-                EditorGUILayout.Space();
-                DrawLine(1);
-                GUILayout.Label("Blendshapes", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("The performance impact of Blendshapes grows linear with polygon count. A general consense is that above 32.000 polygones splitting your mesh will improve performance." +
-                    " Click here for more information to blendshapes from the VRChat Documentation.", MessageType.None);
-                if(Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
-                    Application.OpenURL("https://docs.vrchat.com/docs/avatar-optimizing-tips#-except-when-youre-using-shapekeys");
-                if (skinendMeshesWithBlendshapes.Count() > 0 && skinendMeshesWithBlendshapes.First().Item2 > 32000)
-                    EditorGUILayout.HelpBox($"Consider splitting \"{skinendMeshesWithBlendshapes.First().Item1.name}\" into multiple meshes where only one has blendshapes. " +
-                        $"This will reduce the amount polygons actively affected by blendshapes.", MessageType.Error);
-                blendshapeMeshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(blendshapeMeshesFoldout, "Skinned Meshes With Blendshapes", EditorStyles.foldout);
-                if (blendshapeMeshesFoldout)
+                _blendshapeFoldout = DrawSection(_blendshapeQuality, "Blendshapes", _totalBlendshapeData.ToString(), _blendshapeFoldout);
+                if(_blendshapeFoldout)
                 {
+                    EditorGUILayout.LabelField($"Blendshape verticies: {_totalBlendshapeVerticies}");
+                    EditorGUILayout.LabelField($"Blendshape data (verticies * blendshapes): {_totalBlendshapeData}");
+
+                    EditorGUILayout.HelpBox("The performance impact of Blendshapes grows linear with polygon count. A general consense is that above 32.000 polygones splitting your mesh will improve performance." +
+                        " Click here for more information to blendshapes from the VRChat Documentation.", MessageType.None);
+                    if(Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+                        Application.OpenURL("https://docs.vrchat.com/docs/avatar-optimizing-tips#-except-when-youre-using-shapekeys");
+                    if (_skinendMeshesWithBlendshapes.Count() > 0 && _skinendMeshesWithBlendshapes.First().Item2 > 32000)
+                        EditorGUILayout.HelpBox($"Consider splitting \"{_skinendMeshesWithBlendshapes.First().Item1.name}\" into multiple meshes where only one has blendshapes. " +
+                            $"This will reduce the amount polygons actively affected by blendshapes.", MessageType.Error);
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField("Skinned Mesh Renderer");
                     EditorGUILayout.LabelField("Affected Triangles");
                     EditorGUILayout.EndHorizontal();
-                    foreach ((SkinnedMeshRenderer, int) mesh in skinendMeshesWithBlendshapes)
+                    foreach ((SkinnedMeshRenderer, int, int) mesh in _skinendMeshesWithBlendshapes)
                     {
                         EditorGUILayout.BeginHorizontal();
                         EditorGUILayout.ObjectField(mesh.Item1, typeof(SkinnedMeshRenderer), true);
@@ -166,21 +197,22 @@ namespace Thry.AvatarHelpers {
                         EditorGUILayout.EndHorizontal();
                     }
                 }
-                EditorGUILayout.EndFoldoutHeaderGroup();
 
-                EditorGUILayout.Space();
-                DrawLine(1);
-                //Any states
-                r = GUILayoutUtility.GetRect(new GUIContent(), EditorStyles.boldLabel);
-                GUI.Label(r, "Any State Transitions: ", EditorStyles.boldLabel);
-                r.x += 140;
-                GUI.Label(r, "" + anyStateTransitions);
-                EditorGUILayout.HelpBox("For each any state transition the conditons are checked every frame. " +
-                    "This makes them expensive compared to normal transitions and a large number of them can seriously impact the CPU usage. A healty limit is around 50 transitions.", MessageType.None);
-                if (anyStateTransitions > 150)
-                    EditorGUILayout.HelpBox("Reduce your any state transitions. At this amount the impact on the CPU is significant.", MessageType.Error);
-                else if (anyStateTransitions > 50)
-                    EditorGUILayout.HelpBox("Try to replace some of your any state transitions with normal transitions if possible.", MessageType.Warning);
+                // Any states
+                _anyStateFoldout = DrawSection(_anyStateTransitionsQuality, "Any State Transitions", _anyStateTransitions.ToString(), _anyStateFoldout);
+                if(_anyStateFoldout)
+                {
+                    EditorGUILayout.HelpBox("For each any state transition the conditons are checked every frame. " +
+                        "This makes them expensive compared to normal transitions and a large number of them can seriously impact the CPU usage. A healty limit is around 50 transitions.", MessageType.None);
+                }
+
+                // Layer count
+                _layerCountFoldout = DrawSection(_layerCountQuality, "Layer Count", _layerCount.ToString(), _layerCountFoldout);
+                if(_layerCountFoldout)
+                {
+                    EditorGUILayout.HelpBox("The more layers you have the more expensive the animator is to run. " +
+                        "Animators are running on the CPU, so in a CPU limited game like VRC the smaller the layer count, the better.", MessageType.None);
+                }
 
                 EditorGUILayout.Space();
                 DrawLine(1);
@@ -199,8 +231,8 @@ namespace Thry.AvatarHelpers {
                 if (_writeDefaultoutliers.Length > 0)
                 {
                     EditorGUILayout.HelpBox("Not all of your states have the same write default value.", MessageType.Warning);
-                    writeDefaultsFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(writeDefaultsFoldout, "Outliers", EditorStyles.foldout);
-                    if (writeDefaultsFoldout)
+                    _writeDefaultsFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_writeDefaultsFoldout, "Outliers", EditorStyles.foldout);
+                    if (_writeDefaultsFoldout)
                     {
                         foreach (string s in _writeDefaultoutliers)
                             EditorGUILayout.LabelField(s);
@@ -220,8 +252,8 @@ namespace Thry.AvatarHelpers {
                 {
                     EditorGUILayout.HelpBox("Some of your states do not have a motion. This might cause issues. " +
                         "You can place an empty animation clip in them to prevent this.", MessageType.Warning);
-                    emptyStatesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(emptyStatesFoldout, "Outliers", EditorStyles.foldout);
-                    if (emptyStatesFoldout)
+                    _emptyStatesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_emptyStatesFoldout, "Outliers", EditorStyles.foldout);
+                    if (_emptyStatesFoldout)
                     {
                         foreach (string s in _emptyStates)
                             EditorGUILayout.LabelField(s);
@@ -230,6 +262,65 @@ namespace Thry.AvatarHelpers {
                 }
             }
             EditorGUILayout.EndScrollView();
+        }
+
+        bool DrawSection(Quality quality, string header, string value, bool foldout)
+        {
+            EditorGUILayout.BeginHorizontal();
+                DrawQualityIcon(quality);
+                EditorGUILayout.LabelField($"{header}:", EditorStyles.boldLabel, GUILayout.Width(150));
+                EditorGUILayout.LabelField(value, GUILayout.Width(200));
+                GUILayout.FlexibleSpace();
+                if(GUILayout.Button(foldout ? "Hide Details" : "Show Details", GUILayout.Width(150)))
+                {
+                    foldout = !foldout;
+                }
+            EditorGUILayout.EndHorizontal();
+            return foldout;
+        }
+
+        public static void DrawQualityIcon(Quality type)
+        {
+            GUI.DrawTexture(EditorGUILayout.GetControlRect(false, 16, GUILayout.Width(16), GUILayout.Height(16)), 
+                AvatarEvaluator.GetQualityIcon(type));
+        }
+
+        public static Texture2D GetQualityIcon(Quality type)
+        {
+            Texture2D icon = ICON_VERY_POOR;
+            switch (type)
+            {
+                case Quality.VeryPoor:
+                    icon = ICON_VERY_POOR;
+                    break;
+                case Quality.Poor:
+                    icon = ICON_POOR;
+                    break;
+                case Quality.Medium:
+                    icon = ICON_MEDIUM;
+                    break;
+                case Quality.Good:
+                    icon = ICON_GOOD;
+                    break;
+                case Quality.Excellent:
+                    icon = ICON_EXCELLENT;
+                    break;
+            }
+            return icon;
+        }
+
+        static Quality GetQuality(long value, long excellent, long good, long medium, long poor)
+        {
+            if (value < excellent)
+                return AvatarEvaluator.Quality.Excellent;
+            else if (value < good)
+                return AvatarEvaluator.Quality.Good;
+            else if (value < medium)
+                return AvatarEvaluator.Quality.Medium;
+            else if (value < poor)
+                return AvatarEvaluator.Quality.Poor;
+            else
+                return AvatarEvaluator.Quality.VeryPoor;
         }
         
         void DrawLine(int i_height)
@@ -241,16 +332,20 @@ namespace Thry.AvatarHelpers {
 
         void Evaluate()
         {
-            vramSize = TextureVRAM.QuickCalc(avatar);
-            IEnumerable<Material> materials = GetMaterials(avatar)[1];
+            _vramSize = TextureVRAM.QuickCalc(_avatar);
+            _vramQuality = TextureVRAM.GetTextureQuality(_vramSize, false);
+            IEnumerable<Material> materials = GetMaterials(_avatar)[1];
             IEnumerable<Shader> shaders = materials.Where(m => m!= null && m.shader != null).Select(m => m.shader).Distinct();
-            shadersWithGrabpass = shaders.Where(s => File.Exists(AssetDatabase.GetAssetPath(s)) &&  Regex.Match(File.ReadAllText(AssetDatabase.GetAssetPath(s)), @"GrabPass\s*{\s*""(\w|_)+""\s+}").Success ).ToArray();
-            grabpassCount = shadersWithGrabpass.Count();
+            _shadersWithGrabpass = shaders.Where(s => File.Exists(AssetDatabase.GetAssetPath(s)) &&  Regex.Match(File.ReadAllText(AssetDatabase.GetAssetPath(s)), @"GrabPass\s*{\s*""(\w|_)+""\s+}").Success ).ToArray();
+            _grabpassCount = _shadersWithGrabpass.Count();
+            _grabpassQuality = _grabpassCount > GRABPASS_LIMIT_MEDIUM ? Quality.VeryPoor : _grabpassCount > GRABPASS_LIMIT_EXCELLENT ? Quality.Medium : Quality.Excellent;
 #if VRC_SDK_VRCSDK3
-            VRCAvatarDescriptor descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
-            IEnumerable<AnimatorStateMachine> statesMachines = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
-                Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Select(l => l.stateMachine).Where(l => l != null);
-            anyStateTransitions = statesMachines.SelectMany(l => l.anyStateTransitions).Count();
+            VRCAvatarDescriptor descriptor = _avatar.GetComponent<VRCAvatarDescriptor>();
+            IEnumerable<AnimatorControllerLayer> layers = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
+                Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Where(l => l != null);
+            IEnumerable<AnimatorStateMachine> statesMachines = layers.Select(l => l.stateMachine).Where(s => s != null);
+            _anyStateTransitions = statesMachines.SelectMany(l => l.anyStateTransitions).Count();
+            _anyStateTransitionsQuality = GetQuality(_anyStateTransitions, ANYSTATE_LIMIT_EXCELLENT, ANYSTATE_LIMIT_GOOD, ANYSTATE_LIMIT_MEDIUM, ANYSTATE_LIMIT_POOR);
             IEnumerable<(AnimatorState,string)> states = statesMachines.SelectMany(m => m.states.Select(s => (s.state, m.name+"/"+s.state.name)));
 
             _emptyStates = states.Where(s => s.Item1.motion == null).Select(s => s.Item2).ToArray();
@@ -260,9 +355,15 @@ namespace Thry.AvatarHelpers {
             _writeDefault = wdOn.Count() >= wdOff.Count();
             if (_writeDefault) _writeDefaultoutliers = wdOff.Select(s => s.Item2).ToArray();
             else _writeDefaultoutliers = wdOn.Select(s => s.Item2).ToArray();
+
+            _layerCount = layers.Count();
+            _layerCountQuality = GetQuality(_layerCount, LAYER_LIMIT_EXCELLENT, LAYER_LIMIT_GOOD, LAYER_LIMIT_MEDIUM, LAYER_LIMIT_POOR);
 #endif
 
-            skinendMeshesWithBlendshapes =  avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh != null && r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3)).OrderByDescending(i => i.Item2).ToArray();
+            _skinendMeshesWithBlendshapes =  _avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh != null && r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3, r.sharedMesh.blendShapeCount)).OrderByDescending(i => i.Item2).ToArray();
+            _totalBlendshapeVerticies = _skinendMeshesWithBlendshapes.Sum(i => i.verticies);
+            _totalBlendshapeData = _skinendMeshesWithBlendshapes.Sum(i => i.verticies * i.blendshapeCount);
+            _blendshapeQuality = GetQuality(_totalBlendshapeData, BLENDSHAPE_DATA_LIMIT_EXCELLENT, BLENDSHAPE_DATA_LIMIT_GOOD, BLENDSHAPE_DATA_LIMIT_MEDIUM, BLENDSHAPE_DATA_LIMIT_POOR);
         }
 
         public static IEnumerable<Material>[] GetMaterials(GameObject avatar)
