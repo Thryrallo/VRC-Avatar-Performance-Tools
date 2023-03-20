@@ -1,16 +1,14 @@
 ﻿#if UNITY_EDITOR
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
+using System.Data.SqlTypes;
+using System.Drawing;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Profiling;
+using UnityEngine.Rendering;
 #if VRC_SDK_VRCSDK3 && !UDON
-using VRC.SDK3.Avatars.Components;
 #endif
 
 namespace Thry.AvatarHelpers
@@ -247,6 +245,9 @@ namespace Thry.AvatarHelpers
             public int minBPP;
             public string format;
             public bool hasAlpha;
+
+            public List<Material> materials;
+            public bool materialDropDown;
         }
 
         struct MeshInfo
@@ -269,10 +270,28 @@ namespace Thry.AvatarHelpers
         bool _includeInactive = true;
         List<TextureInfo> _texturesList;
         List<MeshInfo> _meshesList;
-        Vector2 _scrollpos;
+        Vector2 _scrollPosMajor;
+        Vector2 _scrollPosMesh;
+        Vector2 _scrollposTex;
+
+        GUIContent matActiveIcon;
+        GUIContent matInactiveIcon;
+        GUIContent meshInactiveIcon;
+        GUIContent meshActiveIcon;
+        GUIContent refreshIcon;
+        Texture infoIcon;
 
         bool _texturesFoldout;
         bool _meshesFoldout;
+
+        private void OnEnable() {
+            matActiveIcon = EditorGUIUtility.IconContent("d_Material Icon");
+            matInactiveIcon = EditorGUIUtility.IconContent("d_Material On Icon");
+            infoIcon = EditorGUIUtility.Load("console.infoicon") as Texture;
+            meshInactiveIcon = EditorGUIUtility.IconContent("d_Mesh Icon");
+            meshActiveIcon = EditorGUIUtility.IconContent("d_MeshCollider Icon");
+            refreshIcon = EditorGUIUtility.IconContent("RotateTool On", "Recalculate");
+        }
 
         private void OnGUI()
         {
@@ -286,28 +305,37 @@ namespace Thry.AvatarHelpers
             EditorGUILayout.HelpBox("VRAM is not Download size", MessageType.Warning);
             EditorGUILayout.HelpBox("The video memory size can affect your fps greatly. Your graphics card only has a " +
                 "certain amount of video memory and if that is used up it has to start moving assets between your system memory and the video memory, which is really slow.", MessageType.Warning);
-            EditorGUILayout.HelpBox("Video memeory usage adds up quickly\nExample: 150MB / per avatar * 40 Avatars + 2GB World = 8GB\n=> Uses up all VRAM on an RTX 3070", MessageType.None);
+            //EditorGUILayout.HelpBox("Video memory usage adds up quickly\nExample: 150MB / per avatar * 40 Avatars + 2GB World = 8GB\n=> Uses up all VRAM on an RTX 3070", MessageType.Info);
+            EditorGUILayout.HelpBox("Video memory usage adds up quickly\n" +
+                "Taking into account a world VRAM usage of 2GB - If your model uses 150MB of VRAM and there were 40 of you, all 8 GB of VRAM would be used up on an RTX 3070.",
+                MessageType.Info);
 
-            EditorGUILayout.Space();
-            EditorGUILayout.Space();
-
+            GUILine();
 
             EditorGUILayout.LabelField("Input", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
-            _avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", _avatar, typeof(GameObject), true);
-
-            if (EditorGUI.EndChangeCheck() && _avatar != null)
+            using (new EditorGUILayout.HorizontalScope())
             {
-                Calc(_avatar);
+                //GUILayout.Label("Avatar", GUILayout.Width(40));
+                GUI.enabled = _avatar != null;
+                if(GUILayout.Button(refreshIcon, GUILayout.Width(30), GUILayout.Height(30))) {
+                    meshSizeCache.Clear();
+                    Calc(_avatar);
+                }
+                GUI.enabled = true;
+
+                _avatar = (GameObject)EditorGUILayout.ObjectField(GUIContent.none, _avatar, typeof(GameObject), true, GUILayout.Height(30));
+                if (EditorGUI.EndChangeCheck() && _avatar != null) {
+                    Calc(_avatar);
+                }
+
             }
 
             if (_avatar != null)
             {
-                if (GUILayout.Button("Recalculate"))
-                {
-                    meshSizeCache.Clear();
-                    Calc(_avatar);
-                }
+                _scrollPosMajor = EditorGUILayout.BeginScrollView(_scrollPosMajor);
+
+                GUILine();
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
@@ -337,8 +365,8 @@ namespace Thry.AvatarHelpers
                 
                 EditorGUILayout.Space(5);
                 EditorGUILayout.BeginHorizontal(GUI.skin.box);
-                    EditorGUILayout.LabelField("Size (all): ", AvatarEvaluator.ToMebiByteString(_sizeAll));
-                    EditorGUILayout.LabelField("Size (only active): ", AvatarEvaluator.ToMebiByteString(_sizeActive));
+                    EditorGUILayout.LabelField("Combined (all): ", AvatarEvaluator.ToMebiByteString(_sizeAll));
+                    EditorGUILayout.LabelField("Combined (only active): ", AvatarEvaluator.ToMebiByteString(_sizeActive));
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.HelpBox("Inactive Objects are not unloaded. They are moved to system memory first if you run out of VRAM, " +
@@ -351,83 +379,159 @@ namespace Thry.AvatarHelpers
                 if (_texturesList == null) Calc(_avatar);
                 if (_texturesList != null)
                 {
-                    EditorGUILayout.Space();
-
+                    GUILine();
                     EditorGUILayout.LabelField("Assets", EditorStyles.boldLabel);
                     _includeInactive = EditorGUILayout.ToggleLeft("Show assets of disabled Objects", _includeInactive);
-                    _scrollpos = EditorGUILayout.BeginScrollView(_scrollpos);
 
-                    EditorGUI.indentLevel += 2;
+                    //EditorGUI.indentLevel += 2;
+
                     _texturesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_texturesFoldout, $"Textures  ({AvatarEvaluator.ToMebiByteString(_sizeAllTextures)})");
                     if (_texturesFoldout)
                     {
-                        EditorGUILayout.HelpBox("The determining factor of texture VRAM size is the resolution of the texutre and the used compression format. " +
+                        EditorGUILayout.HelpBox("The determining factor of texture VRAM size is the resolution of the texutre and the used compression format.\n" +
                             "Both can be changed in the importer settings of each texture.\n\n" +
                             "Resolution: View your avatar from ~1 meter away. Reduce the texture size until you see a noticable drop in quality.\n" +
-                            "Compression: BC7 or DXT5 for textures with alpha. DXT1 for images without alpha.\n\n"+
+                            "Compression: BC7 or DXT5 for textures with alpha. DXT1 for images without alpha.\n\n" +
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
 
-                        foreach (TextureInfo texInfo in _texturesList)
+                        _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(500));
+                        for (int texIdx = 0; texIdx < _texturesList.Count; texIdx++)
                         {
+                            TextureInfo texInfo = _texturesList[texIdx];
                             if (_includeInactive || texInfo.isActive)
                             {
-                                EditorGUILayout.BeginHorizontal();
-                                EditorGUILayout.ObjectField(texInfo.texture, typeof(Texture), false);
-                                EditorGUILayout.LabelField(texInfo.print, GUILayout.Width(100));
-                                EditorGUILayout.LabelField($"({texInfo.format})", GUILayout.Width(100));
+                                // get info messages
+                                List<string> infoMessages = new List<string>();
+                                if(texInfo.format.Length < 1) {
+                                    infoMessages.Add("This texture is not compressable");
+                                }
+                                if(texInfo.materials.Count < 1) {
+                                    infoMessages.Add("This texture is used in a material swap");
+                                }
 
-                                if(texInfo.format.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
+
+                                // idk how to make a fake indent (because im using guilayout.button which ignores indents) so i just used a horizontal scope with a space :)
+                                EditorGUILayout.BeginHorizontal();
+                                GUILayout.Space(25);
+                                EditorGUILayout.BeginVertical("box");
+                                using (new EditorGUILayout.HorizontalScope())
                                 {
-                                    TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
-                                    TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
-                                        TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
-                                    string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
-                                    if (GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200)))
+                                    using (new EditorGUI.DisabledGroupScope(texInfo.materials.Count < 1))
                                     {
-                                        importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+                                        GUIContent content = texInfo.materialDropDown ? matActiveIcon : matInactiveIcon;
+                                        if (GUILayout.Button(content, GUILayout.Width(25), GUILayout.Height(20)))
                                         {
-                                            name = "PC",
-                                            overridden = true,
-                                            format = newFormat,
-                                            maxTextureSize = texInfo.texture.width,
-                                            compressionQuality = 100
-                                        });
-                                        importer.SaveAndReimport();
-                                        Calc(_avatar);
-                                    } else {
-                                        GUILayout.Space(200);
+                                            texInfo.materialDropDown = !texInfo.materialDropDown;
+                                            _texturesList[texIdx] = texInfo;
+                                        }
                                     }
-                                }else
+
+                                    // set labelwidth for guilayout.label
+                                    EditorGUIUtility.labelWidth = 50;
+                                    GUILayout.Label(texInfo.print, GUILayout.Width(70), GUILayout.Height(20));
+
+                                    if (infoMessages.Count > 0) {
+                                        string messages = string.Join("\n", infoMessages);
+                                        GUILayout.Label(new GUIContent(infoIcon, messages), GUILayout.Width(20), GUILayout.Height(20));
+                                    } else {
+                                        GUILayout.Space(25);
+                                    }
+
+                                    EditorGUILayout.ObjectField(texInfo.texture, typeof(object), false, GUILayout.Width(280), GUILayout.Height(20));
+
+                                    if(texInfo.format.Length > 0 
+                                        && GUILayout.Button(new GUIContent($"({texInfo.format})", texInfo.format), EditorStyles.label, GUILayout.Width(100), GUILayout.Height(20))) {
+                                        Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
+                                    }
+
+                                    if (texInfo.format.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
+                                    {
+                                        TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+                                        TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
+                                            TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
+                                        string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
+                                        if (GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200), GUILayout.Height(20))
+                                            && EditorUtility.DisplayDialog("Confirm Compression Format Change!", $"You are about to change the compression format of texture '{texInfo.texture.name}' from {texInfo.format} => {newFormat}\n\n" +
+                                            $"If you wish to return this textures' compression to {texInfo.format}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
+                                        {
+                                            importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+                                            {
+                                                name = "PC",
+                                                overridden = true,
+                                                format = newFormat,
+                                                maxTextureSize = texInfo.texture.width,
+                                                compressionQuality = 100
+                                            });
+                                            importer.SaveAndReimport();
+                                            Calc(_avatar);
+                                        }
+                                        else
+                                        {
+                                            GUILayout.Space(200);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        EditorGUILayout.GetControlRect(GUILayout.Width(200), GUILayout.Height(20));
+                                    }
+                                }
+
+                                if (texInfo.materialDropDown)
                                 {
-                                    EditorGUILayout.GetControlRect(GUILayout.Width(200));
+                                    GUILayout.Label($"Used in {texInfo.materials.Count()} material(s) on '{_avatar.name}'", EditorStyles.boldLabel);
+                                    EditorGUI.indentLevel++;
+                                    foreach (Material mat in texInfo.materials){
+                                        EditorGUILayout.ObjectField(mat, typeof(Material), false, GUILayout.Width(395), GUILayout.Height(20));
+                                    }
+                                    EditorGUI.indentLevel--;
+                                    GUILayout.Space(5);
+                                }
+
+                                EditorGUILayout.EndVertical();
+                                EditorGUILayout.EndHorizontal();
+                            }
+                        }
+                        EditorGUILayout.EndScrollView();
+                    }
+
+                    EditorGUILayout.EndFoldoutHeaderGroup();
+
+                    _meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(_sizeAllMeshes)})");
+                    if (_meshesFoldout)
+                    {
+                        _scrollPosMesh = EditorGUILayout.BeginScrollView(_scrollPosMesh, GUILayout.Height(300));
+                        for (int mIdx = 0; mIdx < _meshesList.Count; mIdx++) {
+                            MeshInfo meshInfo = _meshesList[mIdx];
+                            if (_includeInactive || meshInfo.isActive)
+                            {
+                                EditorGUILayout.BeginHorizontal();
+                                GUILayout.Space(25);
+                                using (new EditorGUILayout.HorizontalScope("box")) {
+                                    EditorGUILayout.LabelField(new GUIContent(meshInfo.print, meshInfo.print), GUILayout.Width(100), GUILayout.Height(20));
+                                    EditorGUILayout.ObjectField(meshInfo.mesh, typeof(Mesh), false, GUILayout.Width(400), GUILayout.Height(20));
                                 }
                                 EditorGUILayout.EndHorizontal();
                             }
                         }
-                    }
-                    
-                    EditorGUILayout.EndFoldoutHeaderGroup();
-                    
-                    _meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(_sizeAllMeshes)})");
-                    if (_meshesFoldout)
-                    {
-                        foreach (MeshInfo meshInfo in _meshesList)
-                        {
-                            if (_includeInactive || meshInfo.isActive)
-                            {
-                                EditorGUILayout.BeginHorizontal();
-                                EditorGUILayout.ObjectField(meshInfo.mesh, typeof(Mesh), false);
-                                EditorGUILayout.LabelField(meshInfo.print);
-                                EditorGUILayout.EndHorizontal();
-                            }
-                        }
+                        EditorGUILayout.EndScrollView();
                     }
                     EditorGUILayout.EndFoldoutHeaderGroup();
-                    EditorGUI.indentLevel -= 2;
-                    EditorGUILayout.EndScrollView();
+                    //EditorGUI.indentLevel -= 2;
                 }
+                EditorGUILayout.EndScrollView();
             }
+        }
+
+        static void GUILine(int i_height = 1)
+        {
+            GUILayout.Space(10);
+            Rect rect = EditorGUILayout.GetControlRect(false, i_height);
+            if (rect != null){
+                rect.width = EditorGUIUtility.currentViewWidth;
+                GUI.DrawTexture(rect, EditorGUIUtility.whiteTexture);
+            }
+            GUILayout.Space(10);
         }
 
         static Dictionary<Texture, bool> GetTextures(GameObject avatar)
@@ -472,72 +576,120 @@ namespace Thry.AvatarHelpers
             return size;
         }
 
+        List<Material> GetMaterialsUsingTexture(Texture texture, List<Material> materialsToSearch) {
+            List<Material> materials = new List<Material>();
+
+            foreach(Material mat in materialsToSearch) {
+                foreach (string propName in mat.GetTexturePropertyNames()) {
+                    Texture matTex = mat.GetTexture(propName);
+                    if (matTex != null && matTex == texture) {
+                        materials.Add(mat);
+                        break;
+                    }
+                }
+            }
+
+            return materials;
+        }
+
         public long Calc(GameObject avatar)
         {
-            Dictionary<Texture, bool> textures = GetTextures(avatar);
-            _texturesList = new List<TextureInfo>();
-            _sizeAll = 0;
-            _sizeActive = 0;
-            _sizeAllTextures = 0;
-            _sizeAllMeshes = 0;
-            foreach (KeyValuePair<Texture, bool> t in textures)
+            try
             {
-                (long size, string format, int BPP, int minBPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
-                TextureInfo texInfo = new TextureInfo();
-                texInfo.texture = t.Key;
-                texInfo.size = textureInfo.size;
-                texInfo.print = AvatarEvaluator.ToMebiByteString(textureInfo.size);
-                texInfo.format = textureInfo.format;
-                texInfo.BPP = textureInfo.BPP;
-                texInfo.minBPP = textureInfo.minBPP;
-                texInfo.hasAlpha = textureInfo.hasAlpha;
-                texInfo.isActive = t.Value;
-                _texturesList.Add(texInfo);
-                
-                if (t.Value) _sizeActive += textureInfo.Item1;
-                _sizeAllTextures += textureInfo.Item1;
-            }
-            _texturesList.Sort((t1, t2) => t2.size.CompareTo(t1.size));
+                EditorUtility.DisplayProgressBar("Getting VRAM Data", "Getting Materials", 0.5f);
+                // get all materials in avatar
+                List<Material> tempMaterials = avatar.GetComponentsInChildren<Renderer>(true)
+                    .SelectMany(r => r.sharedMaterials)
+                    .Where(mat => mat != null)
+                    .Distinct()
+                    .ToList();
 
-            //Meshes
-            Dictionary<Mesh, bool> meshes = new Dictionary<Mesh, bool>(); 
-            IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer?(r as SkinnedMeshRenderer).sharedMesh: r is MeshRenderer?r.GetComponent<MeshFilter>().sharedMesh:null);
-            IEnumerable<Mesh> activeMeshes = avatar.GetComponentsInChildren<Renderer>().Select(r => r is SkinnedMeshRenderer?(r as SkinnedMeshRenderer).sharedMesh: r is MeshRenderer?r.GetComponent<MeshFilter>().sharedMesh:null);
-            foreach(Mesh m in allMeshes)
-            {
-                if (m == null) continue;
-                bool isActive = activeMeshes.Contains(m);
-                if (meshes.ContainsKey(m))
+                EditorUtility.DisplayProgressBar("Getting VRAM Data", "Getting Textures", 0.5f);
+                Dictionary<Texture, bool> textures = GetTextures(avatar);
+                _texturesList = new List<TextureInfo>();
+                _sizeAll = 0;
+                _sizeActive = 0;
+                _sizeAllTextures = 0;
+                _sizeAllMeshes = 0;
+
+                int numTextures = textures.Keys.Count;
+                int texIdx = 1;
+                foreach (KeyValuePair<Texture, bool> t in textures)
                 {
-                    if (meshes[m] == false && isActive) meshes[m] = true;
+                    EditorUtility.DisplayProgressBar("Getting VRAM Data", $"Calculating Texture size for {t.Key.name}", texIdx / (float)numTextures);
+                    (long size, string format, int BPP, int minBPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
+                    TextureInfo texInfo = new TextureInfo();
+                    texInfo.texture = t.Key;
+                    texInfo.size = textureInfo.size;
+                    texInfo.print = AvatarEvaluator.ToMebiByteString(textureInfo.size);
+                    texInfo.format = textureInfo.format;
+                    texInfo.BPP = textureInfo.BPP;
+                    texInfo.minBPP = textureInfo.minBPP;
+                    texInfo.hasAlpha = textureInfo.hasAlpha;
+                    texInfo.isActive = t.Value;
+
+                    // get materials
+                    texInfo.materials = GetMaterialsUsingTexture(texInfo.texture, tempMaterials);
+                    texInfo.materialDropDown = false;
+
+                    _texturesList.Add(texInfo);
+
+                    if (t.Value) _sizeActive += textureInfo.Item1;
+                    _sizeAllTextures += textureInfo.Item1;
+
+                    texIdx++;
                 }
-                else
+                _texturesList.Sort((t1, t2) => t2.size.CompareTo(t1.size));
+
+                EditorUtility.DisplayProgressBar("Getting VRAM Data", "Getting Meshes", 0.5f);
+                //Meshes
+                Dictionary<Mesh, bool> meshes = new Dictionary<Mesh, bool>();
+                IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
+                IEnumerable<Mesh> activeMeshes = avatar.GetComponentsInChildren<Renderer>().Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
+                foreach (Mesh m in allMeshes)
                 {
-                    meshes.Add(m, isActive);
+                    if (m == null) continue;
+                    bool isActive = activeMeshes.Contains(m);
+                    if (meshes.ContainsKey(m))
+                    {
+                        if (meshes[m] == false && isActive) meshes[m] = true;
+                    }
+                    else
+                    {
+                        meshes.Add(m, isActive);
+                    }
                 }
-            }
-            _meshesList = new List<MeshInfo>();
-            foreach(KeyValuePair<Mesh,bool> m in meshes)
-            {
-                long bytes = CalculateMeshSize(m.Key);
-                if (m.Value) _sizeActive += bytes;
-                _sizeAllMeshes += bytes;
 
-                MeshInfo meshInfo = new MeshInfo();
-                meshInfo.mesh = m.Key;
-                meshInfo.size = bytes;
-                meshInfo.print = AvatarEvaluator.ToMebiByteString(bytes);
-                meshInfo.isActive = m.Value;
-                _meshesList.Add(meshInfo);
-            }
-            _meshesList.Sort((m1, m2) => m2.size.CompareTo(m1.size));
-            _sizeAll = _sizeAllTextures + _sizeAllMeshes;
+                int numMeshes = meshes.Keys.Count;
+                int meshIdx = 1;
+                _meshesList = new List<MeshInfo>();
+                foreach (KeyValuePair<Mesh, bool> m in meshes)
+                {
+                    EditorUtility.DisplayProgressBar("Getting VRAM Data", $"Calculating mesh size for '{m.Key.name}'", meshIdx / (float)numMeshes);
+                    long bytes = CalculateMeshSize(m.Key);
+                    if (m.Value) _sizeActive += bytes;
+                    _sizeAllMeshes += bytes;
 
-            // Assign quality
-            _pcTextureQuality = GetTextureQuality(_sizeAllTextures, false);
-            _pcMeshQuality = GetMeshQuality(_sizeAllMeshes, false);
-            _questTextureQuality = GetTextureQuality(_sizeAllTextures, true);
-            _questMeshQuality = GetMeshQuality(_sizeAllMeshes, true);
+                    MeshInfo meshInfo = new MeshInfo();
+                    meshInfo.mesh = m.Key;
+                    meshInfo.size = bytes;
+                    meshInfo.print = AvatarEvaluator.ToMebiByteString(bytes);
+                    meshInfo.isActive = m.Value;
+                    _meshesList.Add(meshInfo);
+                    meshIdx++;
+                }
+                EditorUtility.DisplayProgressBar("Getting VRAM Data", "Finishing Up", 0.5f);
+                _meshesList.Sort((m1, m2) => m2.size.CompareTo(m1.size));
+                _sizeAll = _sizeAllTextures + _sizeAllMeshes;
+
+                // Assign quality
+                _pcTextureQuality = GetTextureQuality(_sizeAllTextures, false);
+                _pcMeshQuality = GetMeshQuality(_sizeAllMeshes, false);
+                _questTextureQuality = GetTextureQuality(_sizeAllTextures, true);
+                _questMeshQuality = GetMeshQuality(_sizeAllMeshes, true);
+            } finally {
+                EditorUtility.ClearProgressBar();
+            }
 
             return _sizeAll;
         }
