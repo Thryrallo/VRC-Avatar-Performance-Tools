@@ -217,25 +217,25 @@ namespace Thry.AvatarHelpers
             { VertexAttributeFormat.SInt32, 4},
         };
 
-        const long PC_TEXTURE_MEMORY_EXCELLENT_MB = 40;
-        const long PC_TEXTURE_MEMORY_GOOD_MB = 75;
-        const long PC_TEXTURE_MEMORY_MEDIUM_MB = 110;
-        const long PC_TEXTURE_MEMORY_POOR_MB = 150;
+        const long PC_TEXTURE_MEMORY_EXCELLENT_MiB = 40;
+        const long PC_TEXTURE_MEMORY_GOOD_MiB = 75;
+        const long PC_TEXTURE_MEMORY_MEDIUM_MiB = 110;
+        const long PC_TEXTURE_MEMORY_POOR_MiB = 150;
 
-        const long PC_MESH_MEMORY_EXCELLENT_MB = 20;
-        const long PC_MESH_MEMORY_GOOD_MB = 35;
-        const long PC_MESH_MEMORY_MEDIUM_MB = 55;
-        const long PC_MESH_MEMORY_POOR_MB = 80;
+        const long PC_MESH_MEMORY_EXCELLENT_MiB = 20;
+        const long PC_MESH_MEMORY_GOOD_MiB = 35;
+        const long PC_MESH_MEMORY_MEDIUM_MiB = 55;
+        const long PC_MESH_MEMORY_POOR_MiB = 80;
 
-        const long QUEST_TEXTURE_MEMORY_EXCELLENT_MB = 10;
-        const long QUEST_TEXTURE_MEMORY_GOOD_MB = 18;
-        const long QUEST_TEXTURE_MEMORY_MEDIUM_MB = 25;
-        const long QUEST_TEXTURE_MEMORY_POOR_MB = 40;
+        const long QUEST_TEXTURE_MEMORY_EXCELLENT_MiB = 10;
+        const long QUEST_TEXTURE_MEMORY_GOOD_MiB = 18;
+        const long QUEST_TEXTURE_MEMORY_MEDIUM_MiB = 25;
+        const long QUEST_TEXTURE_MEMORY_POOR_MiB = 40;
 
-        const long QUEST_MESH_MEMORY_EXCELLENT_MB = 5;
-        const long QUEST_MESH_MEMORY_GOOD_MB = 10;
-        const long QUEST_MESH_MEMORY_MEDIUM_MB = 15;
-        const long QUEST_MESH_MEMORY_POOR_MB = 25;
+        const long QUEST_MESH_MEMORY_EXCELLENT_MiB = 5;
+        const long QUEST_MESH_MEMORY_GOOD_MiB = 10;
+        const long QUEST_MESH_MEMORY_MEDIUM_MiB = 15;
+        const long QUEST_MESH_MEMORY_POOR_MiB = 25;
 
         struct TextureInfo
         {
@@ -542,28 +542,28 @@ namespace Thry.AvatarHelpers
         public static AvatarEvaluator.Quality GetTextureQuality(long size, bool quest)
         {
             if (quest)
-                return GetQuality(size, QUEST_TEXTURE_MEMORY_EXCELLENT_MB, QUEST_TEXTURE_MEMORY_GOOD_MB, QUEST_TEXTURE_MEMORY_MEDIUM_MB, QUEST_TEXTURE_MEMORY_POOR_MB);
+                return GetQuality(size, QUEST_TEXTURE_MEMORY_EXCELLENT_MiB, QUEST_TEXTURE_MEMORY_GOOD_MiB, QUEST_TEXTURE_MEMORY_MEDIUM_MiB, QUEST_TEXTURE_MEMORY_POOR_MiB);
             else
-                return GetQuality(size, PC_TEXTURE_MEMORY_EXCELLENT_MB, PC_TEXTURE_MEMORY_GOOD_MB, PC_TEXTURE_MEMORY_MEDIUM_MB, PC_TEXTURE_MEMORY_POOR_MB);
+                return GetQuality(size, PC_TEXTURE_MEMORY_EXCELLENT_MiB, PC_TEXTURE_MEMORY_GOOD_MiB, PC_TEXTURE_MEMORY_MEDIUM_MiB, PC_TEXTURE_MEMORY_POOR_MiB);
         }
 
         public static AvatarEvaluator.Quality GetMeshQuality(long size, bool quest)
         {
             if (quest)
-                return GetQuality(size, QUEST_MESH_MEMORY_EXCELLENT_MB, QUEST_MESH_MEMORY_GOOD_MB, QUEST_MESH_MEMORY_MEDIUM_MB, QUEST_MESH_MEMORY_POOR_MB);
+                return GetQuality(size, QUEST_MESH_MEMORY_EXCELLENT_MiB, QUEST_MESH_MEMORY_GOOD_MiB, QUEST_MESH_MEMORY_MEDIUM_MiB, QUEST_MESH_MEMORY_POOR_MiB);
             else
-                return GetQuality(size, PC_MESH_MEMORY_EXCELLENT_MB, PC_MESH_MEMORY_GOOD_MB, PC_MESH_MEMORY_MEDIUM_MB, PC_MESH_MEMORY_POOR_MB);
+                return GetQuality(size, PC_MESH_MEMORY_EXCELLENT_MiB, PC_MESH_MEMORY_GOOD_MiB, PC_MESH_MEMORY_MEDIUM_MiB, PC_MESH_MEMORY_POOR_MiB);
         }
 
         static AvatarEvaluator.Quality GetQuality(long size, long excellent, long good, long medium, long poor)
         {
-            if (size < excellent * 1000000)
+            if (size < excellent * 1048576)
                 return AvatarEvaluator.Quality.Excellent;
-            else if (size < good * 1000000)
+            else if (size < good * 1048576)
                 return AvatarEvaluator.Quality.Good;
-            else if (size < medium * 1000000)
+            else if (size < medium * 1048576)
                 return AvatarEvaluator.Quality.Medium;
-            else if (size < poor * 1000000)
+            else if (size < poor * 1048576)
                 return AvatarEvaluator.Quality.Poor;
             else
                 return AvatarEvaluator.Quality.VeryPoor;
