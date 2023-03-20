@@ -339,7 +339,7 @@ namespace Thry.AvatarHelpers {
             _shadersWithGrabpass = shaders.Where(s => File.Exists(AssetDatabase.GetAssetPath(s)) &&  Regex.Match(File.ReadAllText(AssetDatabase.GetAssetPath(s)), @"GrabPass\s*{\s*""(\w|_)+""\s+}").Success ).ToArray();
             _grabpassCount = _shadersWithGrabpass.Count();
             _grabpassQuality = _grabpassCount > GRABPASS_LIMIT_MEDIUM ? Quality.VeryPoor : _grabpassCount > GRABPASS_LIMIT_EXCELLENT ? Quality.Medium : Quality.Excellent;
-#if VRC_SDK_VRCSDK3
+#if VRC_SDK_VRCSDK3 && !UDON
             VRCAvatarDescriptor descriptor = _avatar.GetComponent<VRCAvatarDescriptor>();
             IEnumerable<AnimatorControllerLayer> layers = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
                 Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Where(l => l != null);
