@@ -379,21 +379,26 @@ namespace Thry.AvatarHelpers
                                 if(texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
                                 {
                                     TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
-                                    TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ? 
-                                        TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
-                                    string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
-                                    if(GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200)))
+                                    if (importer != null)
                                     {
-                                        importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+                                        TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
+                                            TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
+                                        string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
+                                        if (GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200)))
                                         {
-                                            name = "PC",
-                                            overridden = true,
-                                            format = newFormat,
-                                            maxTextureSize = texInfo.texture.width,
-                                            compressionQuality = 100
-                                        });
-                                        importer.SaveAndReimport();
-                                        Calc(_avatar);
+                                            importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+                                            {
+                                                name = "PC",
+                                                overridden = true,
+                                                format = newFormat,
+                                                maxTextureSize = texInfo.texture.width,
+                                                compressionQuality = 100
+                                            });
+                                            importer.SaveAndReimport();
+                                            Calc(_avatar);
+                                        }
+                                    } else {
+                                        GUILayout.Space(200);
                                     }
                                 }else
                                 {
