@@ -242,6 +242,7 @@ namespace Thry.AvatarHelpers
             public int BPP;
             public int minBPP;
             public string format;
+            public TextureImporterFormat importFormat;
             public bool hasAlpha;
 
             public List<Material> materials;
@@ -272,6 +273,7 @@ namespace Thry.AvatarHelpers
         Vector2 _scrollPosMesh;
         Vector2 _scrollposTex;
 
+        GUIStyle styleButtonTextFloatLeft;
         GUIContent matActiveIcon;
         GUIContent matInactiveIcon;
         GUIContent meshInactiveIcon;
@@ -282,6 +284,10 @@ namespace Thry.AvatarHelpers
         bool _texturesFoldout;
         bool _meshesFoldout;
 
+        int[] _textureSizeOptions = new int[] { 0, 128, 256, 512, 1024, 2048, 4096, 8192 };
+        TextureImporterFormat[] _compressionFormatOptions = new TextureImporterFormat[]{ TextureImporterFormat.Automatic, TextureImporterFormat.Automatic, TextureImporterFormat.BC7, TextureImporterFormat.DXT1, TextureImporterFormat.DXT5 };
+
+
         private void OnEnable() {
             matActiveIcon = EditorGUIUtility.IconContent("d_Material Icon");
             matInactiveIcon = EditorGUIUtility.IconContent("d_Material On Icon");
@@ -291,8 +297,17 @@ namespace Thry.AvatarHelpers
             refreshIcon = EditorGUIUtility.IconContent("RotateTool On", "Recalculate");
         }
 
+        private void InitilizeStyles()
+        {
+            styleButtonTextFloatLeft = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
+        }
+
         private void OnGUI()
         {
+            if(styleButtonTextFloatLeft == null)
+            {
+                InitilizeStyles();
+            }
             EditorGUILayout.Space();
             EditorGUILayout.LabelField($"<size=20><color=magenta>Thry's Avatar VRAM Calculator</color></size> v{AvatarEvaluator.VERSION}", new GUIStyle(EditorStyles.label) { richText = true, alignment = TextAnchor.MiddleCenter });
             if (GUILayout.Button("Click here & follow me on twitter", EditorStyles.centeredGreyMiniLabel))
@@ -436,43 +451,64 @@ namespace Thry.AvatarHelpers
                                         GUILayout.Space(25);
                                     }
 
-                                    EditorGUILayout.ObjectField(texInfo.texture, typeof(object), false, GUILayout.Width(280), GUILayout.Height(20));
+                                    EditorGUILayout.ObjectField(texInfo.texture, typeof(object), false, GUILayout.MinWidth(200), GUILayout.Height(20));
+                                    
+                                    int resolution = Mathf.Max(texInfo.texture.width, texInfo.texture.height);
+                                    _textureSizeOptions[0] = resolution;
+                                    int newResolution = EditorGUILayout.IntPopup(resolution, _textureSizeOptions.Select(x => x.ToString()).ToArray(), _textureSizeOptions, GUILayout.Width(55), GUILayout.Height(20));
+                                    if(newResolution != resolution)
+                                        ChangeImportSize(texInfo, newResolution);
 
-                                    if(texInfo.format.Length > 0 
-                                        && GUILayout.Button(new GUIContent($"({texInfo.format})", texInfo.format), EditorStyles.label, GUILayout.Width(100), GUILayout.Height(20))) {
-                                        Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
+                                    if(texInfo.format.Length > 0)
+                                    {
+                                        if(texInfo.importFormat != 0)
+                                        {
+                                            _compressionFormatOptions[0] = texInfo.importFormat;
+                                            int newFormat = EditorGUILayout.Popup(0, _compressionFormatOptions.Select(x => x.ToString()).ToArray(), GUILayout.Width(75), GUILayout.Height(20));
+                                            if(newFormat != 0)
+                                                ChangeCompression(texInfo, _compressionFormatOptions[newFormat]);
+                                        }else
+                                        {
+                                            if(GUILayout.Button(new GUIContent(texInfo.format), EditorStyles.label, GUILayout.Width(65), GUILayout.Height(20)))
+                                                Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
+                                        }
+                                    }else
+                                    {
+                                        GUILayout.Space(65);
                                     }
-
+                                    
                                     if (texInfo.format.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
                                     {
                                         TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
                                         TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
                                             TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
-                                        string savedSize = AvatarEvaluator.ToMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
-                                        if (GUILayout.Button($"{newFormat} => Save {savedSize}", GUILayout.Width(200), GUILayout.Height(20))
+                                        string savedSize = AvatarEvaluator.ToShortMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
+                                        if (GUILayout.Button($"{newFormat} → -{savedSize}", styleButtonTextFloatLeft, GUILayout.Width(120), GUILayout.Height(20))
                                             && EditorUtility.DisplayDialog("Confirm Compression Format Change!", $"You are about to change the compression format of texture '{texInfo.texture.name}' from {texInfo.format} => {newFormat}\n\n" +
                                             $"If you wish to return this textures' compression to {texInfo.format}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
                                         {
-                                            importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
-                                            {
-                                                name = "PC",
-                                                overridden = true,
-                                                format = newFormat,
-                                                maxTextureSize = texInfo.texture.width,
-                                                compressionQuality = 100
-                                            });
-                                            importer.SaveAndReimport();
-                                            Calc(_avatar);
-                                        }
-                                        else
-                                        {
-                                            GUILayout.Space(200);
+                                            ChangeCompression(texInfo, newFormat);
                                         }
                                     }
                                     else
                                     {
-                                        EditorGUILayout.GetControlRect(GUILayout.Width(200), GUILayout.Height(20));
+                                        EditorGUILayout.GetControlRect(GUILayout.Width(120), GUILayout.Height(20));
                                     }
+
+                                    if(resolution > 2048)
+                                    {
+                                        string savedSize = AvatarEvaluator.ToShortMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, texInfo.BPP, 2048f / resolution));
+                                        if (GUILayout.Button($"2k → -{savedSize}", styleButtonTextFloatLeft, GUILayout.Width(120), GUILayout.Height(20)))
+                                        {
+                                            ChangeImportSize(texInfo, 2048);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        EditorGUILayout.GetControlRect(GUILayout.Width(120), GUILayout.Height(20));
+                                    }
+
+                                    GUILayout.FlexibleSpace();
                                 }
 
                                 if (texInfo.materialDropDown)
@@ -521,6 +557,32 @@ namespace Thry.AvatarHelpers
             }
         }
 
+        void ChangeCompression(TextureInfo texInfo, TextureImporterFormat format)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+            importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings()
+            {
+                name = "PC",
+                overridden = (int)format != -1,
+                format = format,
+                maxTextureSize = importer.maxTextureSize,
+                compressionQuality = 100
+            });
+            importer.SaveAndReimport();
+            Calc(_avatar);
+        }
+
+        void ChangeImportSize(TextureInfo texInfo, int size)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+            importer.maxTextureSize = size;
+            TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings("PC");
+            settings.maxTextureSize = size;
+            importer.SetPlatformTextureSettings(settings);
+            importer.SaveAndReimport();
+            Calc(_avatar);
+        }
+
         static void GUILine(int i_height = 1)
         {
             GUILayout.Space(10);
@@ -564,7 +626,7 @@ namespace Thry.AvatarHelpers
             Dictionary<Texture, bool> textures = GetTextures(avatar);
             long size = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
-                size += CalculateTextureSize(t.Key, t.Value).Item1;
+                size += CalculateTextureSize(t.Key, new TextureInfo()).size;
             IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
             foreach (Mesh m in allMeshes)
             {
@@ -615,15 +677,10 @@ namespace Thry.AvatarHelpers
                 foreach (KeyValuePair<Texture, bool> t in textures)
                 {
                     EditorUtility.DisplayProgressBar("Getting VRAM Data", $"Calculating Texture size for {t.Key.name}", texIdx / (float)numTextures);
-                    (long size, string format, int BPP, int minBPP, bool hasAlpha) textureInfo = CalculateTextureSize(t.Key, t.Value);
                     TextureInfo texInfo = new TextureInfo();
+                    texInfo = CalculateTextureSize(t.Key, texInfo);
                     texInfo.texture = t.Key;
-                    texInfo.size = textureInfo.size;
-                    texInfo.print = AvatarEvaluator.ToMebiByteString(textureInfo.size);
-                    texInfo.format = textureInfo.format;
-                    texInfo.BPP = textureInfo.BPP;
-                    texInfo.minBPP = textureInfo.minBPP;
-                    texInfo.hasAlpha = textureInfo.hasAlpha;
+                    texInfo.print = AvatarEvaluator.ToMebiByteString(texInfo.size);
                     texInfo.isActive = t.Value;
 
                     // get materials
@@ -632,8 +689,8 @@ namespace Thry.AvatarHelpers
 
                     _texturesList.Add(texInfo);
 
-                    if (t.Value) _sizeActive += textureInfo.Item1;
-                    _sizeAllTextures += textureInfo.Item1;
+                    if (t.Value) _sizeActive += texInfo.size;
+                    _sizeAllTextures += texInfo.size;
 
                     texIdx++;
                 }
@@ -769,14 +826,8 @@ namespace Thry.AvatarHelpers
             return bytes;
         }
 
-        static (long size, string format, int BPP, int minBPP, bool hasAlpha) CalculateTextureSize(Texture t, bool addToList)
+        static TextureInfo CalculateTextureSize(Texture t, TextureInfo info)
         {
-            string format = "";
-            int bpp = 0;
-            int minBPP = 8;
-            bool hasAlpha = false;
-            long size = 0;
-
             string path = AssetDatabase.GetAssetPath(t);
             if (t != null && path != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
             {
@@ -789,14 +840,15 @@ namespace Thry.AvatarHelpers
                     if (textureFormat == TextureImporterFormat.AutomaticCompressed) textureFormat = textureImporter.GetAutomaticFormat("PC");
 #pragma warning restore CS0618
 
-                    hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
-                    minBPP = (hasAlpha || textureImporter.textureType == TextureImporterType.NormalMap) ? 8 : 4;
+                    info.hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
+                    info.minBPP = (info.hasAlpha || textureImporter.textureType == TextureImporterType.NormalMap) ? 8 : 4;
 
                     if (BPP.ContainsKey(textureFormat))
                     {
-                        format = textureFormat.ToString();
-                        bpp = BPP[textureFormat];
-                        size = TextureToBytesUsingBPP(t, BPP[textureFormat]);
+                        info.format = textureFormat.ToString();
+                        info.importFormat = textureFormat;
+                        info.BPP = BPP[textureFormat];
+                        info.size = TextureToBytesUsingBPP(t, BPP[textureFormat]);
                     }
                     else
                     {
@@ -805,41 +857,43 @@ namespace Thry.AvatarHelpers
                 }
                 else
                 {
-                    size = Profiler.GetRuntimeMemorySizeLong(t);
-                    bpp = (int)(size * 8 / (t.width * t.height));
+                    info.size = Profiler.GetRuntimeMemorySizeLong(t);
+                    info.BPP = (int)(info.size * 8 / (t.width * t.height));
                 }
             }
             else if (t is RenderTexture)
             {
                 RenderTexture rt = t as RenderTexture;
-                bpp = RT_BPP[rt.format] + rt.depth;
-                format = rt.format.ToString();
-                hasAlpha = rt.format == RenderTextureFormat.ARGB32 || rt.format == RenderTextureFormat.ARGBHalf || rt.format == RenderTextureFormat.ARGBFloat;
-                size = TextureToBytesUsingBPP(t, bpp);
+                info.BPP = RT_BPP[rt.format] + rt.depth;
+                info.format = rt.format.ToString();
+                info.hasAlpha = rt.format == RenderTextureFormat.ARGB32 || rt.format == RenderTextureFormat.ARGBHalf || rt.format == RenderTextureFormat.ARGBFloat;
+                info.size = TextureToBytesUsingBPP(t, info.BPP);
             }
             else
             {
-                size = Profiler.GetRuntimeMemorySizeLong(t);
+                info.size = Profiler.GetRuntimeMemorySizeLong(t);
             }
 
-            return (size,format, bpp, minBPP, hasAlpha);
+            return info;
         }
 
-        static long TextureToBytesUsingBPP(Texture t, int bpp)
+        static long TextureToBytesUsingBPP(Texture t, int bpp, float resolutionScale = 1)
         {
+            int width = (int)(t.width * resolutionScale);
+            int height = (int)(t.height * resolutionScale);
             long bytes = 0;
             if (t != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
             {
                 double mipmaps = 1;
                 for (int i = 0; i < t.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
-                bytes = (long)(bpp * t.width * t.height * (t.mipmapCount > 1 ? mipmaps : 1) / 8);
+                bytes = (long)(bpp * width * height * (t.mipmapCount > 1 ? mipmaps : 1) / 8);
             }
             else if (t is RenderTexture)
             {
                 RenderTexture rt = t as RenderTexture;
                 double mipmaps = 1;
                 for (int i = 0; i < rt.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
-                bytes = (long)((RT_BPP[rt.format] + rt.depth) * rt.width * rt.height * (rt.useMipMap ? mipmaps : 1) / 8);
+                bytes = (long)((RT_BPP[rt.format] + rt.depth) * width * height * (rt.useMipMap ? mipmaps : 1) / 8);
             }
             else
             {
