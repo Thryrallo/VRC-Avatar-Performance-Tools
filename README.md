@@ -24,11 +24,12 @@ Please use this to keep your VRAM usage down. High VRAM usage causes performance
 
 ## Installing with VPM (for VRChat Creator Companion)
 
-1. Open a Command Prompt in Windows and run
+1. Install the VRChat CLI. [Follow the instructions from the VRChat docs. Click here.](https://vcc.docs.vrchat.com/vpm/cli/#installation--updating)
+2. Open a Command Prompt in Windows and run
 ```sh 
 vpm add repo https://thryrallo.github.io/VRC-Avatar-Performance-Tools
 ```
-2. In Creator Compantion click "Manage Project". In the top right under "Selected Repos" check the Avatar Performance Tools listing
+3. In Creator Compantion click "Manage Project". In the top right under "Selected Repos" check the Avatar Performance Tools listing
 
 ## Installing with UPM (Unity Package Manager)
 

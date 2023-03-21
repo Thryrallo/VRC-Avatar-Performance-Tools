@@ -19,7 +19,7 @@ using VRC.SDK3.Avatars.Components;
 namespace Thry.AvatarHelpers {
     public class AvatarEvaluator : EditorWindow
     {
-        public const string VERSION = "1.2.4";
+        public const string VERSION = "1.3.0";
 
         [MenuItem("Thry/Avatar/Evaluator")]
         static void Init()
@@ -73,12 +73,7 @@ namespace Thry.AvatarHelpers {
         const int LAYER_LIMIT_MEDIUM = 30;
         const int LAYER_LIMIT_POOR = 45;
 
-        bool _isGUIInit = false;
-        void InitGUI()
-        {
-            if (_avatar != null) Evaluate();
-            _isGUIInit = true;
-        }
+        GUIContent refreshIcon;
 
         //ui variables
         GameObject _avatar;
@@ -116,6 +111,11 @@ namespace Thry.AvatarHelpers {
 
         string[] _emptyStates;
 
+        private void OnEnable() {
+            refreshIcon = EditorGUIUtility.IconContent("RotateTool On", "Recalculate");
+            if (_avatar != null) Evaluate();
+        }
+
         private void OnGUI()
         {
             EditorGUILayout.Space();
@@ -124,13 +124,24 @@ namespace Thry.AvatarHelpers {
                 Application.OpenURL("https://twitter.com/thryrallo");
             EditorGUILayout.Space();
 
-            if (!_isGUIInit) InitGUI();
-            EditorGUI.BeginChangeCheck();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-            _avatar = (GameObject)EditorGUILayout.ObjectField("Avatar Gameobject", _avatar, typeof(GameObject), true);
-            if (EditorGUI.EndChangeCheck() && _avatar != null)
+
+            EditorGUILayout.LabelField("Input", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            using (new EditorGUILayout.HorizontalScope())
             {
-                Evaluate();
+                //GUILayout.Label("Avatar", GUILayout.Width(40));
+                GUI.enabled = _avatar != null;
+                if(GUILayout.Button(refreshIcon, GUILayout.Width(30), GUILayout.Height(30))) {
+                    Evaluate();
+                }
+                GUI.enabled = true;
+
+                _avatar = (GameObject)EditorGUILayout.ObjectField(GUIContent.none, _avatar, typeof(GameObject), true, GUILayout.Height(30));
+                if (EditorGUI.EndChangeCheck() && _avatar != null) {
+                    Evaluate();
+                }
+
             }
 
             if (_avatar == null)
@@ -149,7 +160,6 @@ namespace Thry.AvatarHelpers {
 
             if (_avatar != null)
             {
-                if (GUILayout.Button("Recalculate")) Evaluate();
                 if (_shadersWithGrabpass == null) Evaluate();
                 if (_skinendMeshesWithBlendshapes == null) Evaluate();
                 EditorGUILayout.Space();
@@ -164,54 +174,35 @@ namespace Thry.AvatarHelpers {
                 _grabpassFoldout = DrawSection(_grabpassQuality, "Grabpasses", _grabpassCount.ToString(), _grabpassFoldout);
                 if(_grabpassFoldout)
                 {
-                    EditorGUILayout.HelpBox("Grabpasses are very expensive. They save your whole screen at a certain point in the rendering process to use it as a texture in the shader.", MessageType.None);
-                    if (_grabpassCount > 0)
-                    {
-                        foreach (Shader s in _shadersWithGrabpass)
-                            EditorGUILayout.ObjectField(s, typeof(Shader), false);
-                    }
+                    DrawGrabpassFoldout();
                 }
                 //Blendshapes
                 _blendshapeFoldout = DrawSection(_blendshapeQuality, "Blendshapes", _totalBlendshapeData.ToString(), _blendshapeFoldout);
                 if(_blendshapeFoldout)
                 {
-                    EditorGUILayout.LabelField($"Blendshape verticies: {_totalBlendshapeVerticies}");
-                    EditorGUILayout.LabelField($"Blendshape data (verticies * blendshapes): {_totalBlendshapeData}");
-
-                    EditorGUILayout.HelpBox("The performance impact of Blendshapes grows linear with polygon count. A general consense is that above 32.000 polygones splitting your mesh will improve performance." +
-                        " Click here for more information to blendshapes from the VRChat Documentation.", MessageType.None);
-                    if(Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
-                        Application.OpenURL("https://docs.vrchat.com/docs/avatar-optimizing-tips#-except-when-youre-using-shapekeys");
-                    if (_skinendMeshesWithBlendshapes.Count() > 0 && _skinendMeshesWithBlendshapes.First().Item2 > 32000)
-                        EditorGUILayout.HelpBox($"Consider splitting \"{_skinendMeshesWithBlendshapes.First().Item1.name}\" into multiple meshes where only one has blendshapes. " +
-                            $"This will reduce the amount polygons actively affected by blendshapes.", MessageType.Error);
-                    EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField("Skinned Mesh Renderer");
-                    EditorGUILayout.LabelField("Affected Triangles");
-                    EditorGUILayout.EndHorizontal();
-                    foreach ((SkinnedMeshRenderer, int, int) mesh in _skinendMeshesWithBlendshapes)
-                    {
-                        EditorGUILayout.BeginHorizontal();
-                        EditorGUILayout.ObjectField(mesh.Item1, typeof(SkinnedMeshRenderer), true);
-                        EditorGUILayout.LabelField($"=> {mesh.Item2} triangles.");
-                        EditorGUILayout.EndHorizontal();
-                    }
+                    DrawBlendshapeFoldout();
                 }
 
                 // Any states
                 _anyStateFoldout = DrawSection(_anyStateTransitionsQuality, "Any State Transitions", _anyStateTransitions.ToString(), _anyStateFoldout);
                 if(_anyStateFoldout)
                 {
-                    EditorGUILayout.HelpBox("For each any state transition the conditons are checked every frame. " +
-                        "This makes them expensive compared to normal transitions and a large number of them can seriously impact the CPU usage. A healty limit is around 50 transitions.", MessageType.None);
+                    using(new DetailsFoldout("For each any state transition the conditons are checked every frame. " +
+                        "This makes them expensive compared to normal transitions and a large number of them can seriously impact the CPU usage. A healty limit is around 50 transitions."))
+                        {
+
+                        }
                 }
 
                 // Layer count
                 _layerCountFoldout = DrawSection(_layerCountQuality, "Layer Count", _layerCount.ToString(), _layerCountFoldout);
                 if(_layerCountFoldout)
                 {
-                    EditorGUILayout.HelpBox("The more layers you have the more expensive the animator is to run. " +
-                        "Animators are running on the CPU, so in a CPU limited game like VRC the smaller the layer count, the better.", MessageType.None);
+                    using(new DetailsFoldout("The more layers you have the more expensive the animator is to run. " +
+                        "Animators are running on the CPU, so in a CPU limited game like VRC the smaller the layer count, the better."))
+                        {
+
+                        }
                 }
 
                 EditorGUILayout.Space();
@@ -277,6 +268,89 @@ namespace Thry.AvatarHelpers {
                 }
             EditorGUILayout.EndHorizontal();
             return foldout;
+        }
+
+        class DetailsFoldout : GUI.Scope
+        {
+            public DetailsFoldout(string info)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(30);
+                GUILayout.BeginVertical();
+                if (string.IsNullOrWhiteSpace(info) == false)
+                    EditorGUILayout.HelpBox(info, MessageType.Info);
+                EditorGUILayout.Space();
+            }
+
+            protected override void CloseScope()
+            {
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        class GUILayoutIndent : GUI.Scope
+        {
+            public GUILayoutIndent(int indent)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(indent * 15);
+                GUILayout.BeginVertical();
+            }
+
+            protected override void CloseScope()
+            {
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        void DrawGrabpassFoldout()
+        {
+            using(new DetailsFoldout("Grabpasses are very expensive. They save your whole screen at a certain point in the rendering process to use it as a texture in the shader."))
+            {
+                if (_grabpassCount > 0)
+                {
+                    foreach (Shader s in _shadersWithGrabpass)
+                        EditorGUILayout.ObjectField(s, typeof(Shader), false);
+                }
+            }
+        }
+
+        void DrawBlendshapeFoldout()
+        {
+            using(new DetailsFoldout("The performance impact of Blendshapes grows linear with polygon count. A general consense is that above 32.000 polygones splitting your mesh will improve performance." +
+                    " Click here for more information to blendshapes from the VRChat Documentation."))
+            {
+                if(Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+                    Application.OpenURL("https://docs.vrchat.com/docs/avatar-optimizing-tips#-except-when-youre-using-shapekeys");
+
+                    EditorGUILayout.BeginHorizontal(GUI.skin.box);
+                            EditorGUILayout.LabelField("Blendshape Triangles: ", _totalBlendshapeVerticies.ToString());    
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.BeginHorizontal(GUI.skin.box);
+                            EditorGUILayout.LabelField("Blendshape Data: ", _totalBlendshapeData.ToString());    
+                    EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space();
+
+                if (_skinendMeshesWithBlendshapes.Count() > 0 && _skinendMeshesWithBlendshapes.First().Item2 > 32000)
+                    EditorGUILayout.HelpBox($"Consider splitting \"{_skinendMeshesWithBlendshapes.First().Item1.name}\" into multiple meshes where only one has blendshapes. " +
+                        $"This will reduce the amount polygons actively affected by blendshapes.", MessageType.Error);
+
+                EditorGUILayout.Space();
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Skinned Mesh Renderer");
+                EditorGUILayout.LabelField("Affected Triangles");
+                EditorGUILayout.EndHorizontal();
+                foreach ((SkinnedMeshRenderer, int, int) mesh in _skinendMeshesWithBlendshapes)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.ObjectField(mesh.Item1, typeof(SkinnedMeshRenderer), true);
+                    EditorGUILayout.LabelField($"=> {mesh.Item2} triangles.");
+                    EditorGUILayout.EndHorizontal();
+                }
+            }
         }
 
         public static void DrawQualityIcon(Quality type)

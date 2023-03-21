@@ -8,8 +8,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
-#if VRC_SDK_VRCSDK3 && !UDON
-#endif
 
 namespace Thry.AvatarHelpers
 {
