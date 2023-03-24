@@ -408,7 +408,7 @@ namespace Thry.AvatarHelpers
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
 
-                        _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(500));
+                        _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(Math.Min(500, _texturesList.Count * 30)));
                         for (int texIdx = 0; texIdx < _texturesList.Count; texIdx++)
                         {
                             TextureInfo texInfo = _texturesList[texIdx];
@@ -416,9 +416,6 @@ namespace Thry.AvatarHelpers
                             {
                                 // get info messages
                                 List<string> infoMessages = new List<string>();
-                                if(texInfo.format.Length < 1) {
-                                    infoMessages.Add("This texture is not compressable");
-                                }
                                 if(texInfo.materials.Count < 1) {
                                     infoMessages.Add("This texture is used in a material swap");
                                 }
@@ -459,7 +456,7 @@ namespace Thry.AvatarHelpers
                                     if(newResolution != resolution)
                                         ChangeImportSize(texInfo, newResolution);
 
-                                    if(texInfo.format.Length > 0)
+                                    if(string.IsNullOrWhiteSpace(texInfo.format) == false)
                                     {
                                         if(texInfo.importFormat != 0)
                                         {
@@ -477,7 +474,7 @@ namespace Thry.AvatarHelpers
                                         GUILayout.Space(65);
                                     }
                                     
-                                    if (texInfo.format.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
+                                    if (string.IsNullOrWhiteSpace(texInfo.format) == false && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
                                     {
                                         TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
                                         TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
@@ -534,7 +531,7 @@ namespace Thry.AvatarHelpers
                     _meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(_sizeAllMeshes)})");
                     if (_meshesFoldout)
                     {
-                        _scrollPosMesh = EditorGUILayout.BeginScrollView(_scrollPosMesh, GUILayout.Height(300));
+                        _scrollPosMesh = EditorGUILayout.BeginScrollView(_scrollPosMesh, GUILayout.Height(Math.Min(500, _meshesList.Count * 30)));
                         for (int mIdx = 0; mIdx < _meshesList.Count; mIdx++) {
                             MeshInfo meshInfo = _meshesList[mIdx];
                             if (_includeInactive || meshInfo.isActive)
