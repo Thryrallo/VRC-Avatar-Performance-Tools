@@ -315,9 +315,9 @@ namespace Thry.AvatarHelpers
             EditorGUILayout.Space();
 
             EditorGUILayout.LabelField("Information", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("VRAM is not Download size", MessageType.Warning);
-            EditorGUILayout.HelpBox("The video memory size can affect your fps greatly. Your graphics card only has a " +
-                "certain amount of video memory and if that is used up it has to start moving assets between your system memory and the video memory, which is really slow.", MessageType.Warning);
+            EditorGUILayout.HelpBox("VRAM is not download size", MessageType.Warning);
+            EditorGUILayout.HelpBox("Video memory size can affect your fps greatly. Your graphics card only has a " +
+                "certain amount of video memory and if that is used up it has to start moving assets between its memory and your system memory, which is really slow.", MessageType.Warning);
             //EditorGUILayout.HelpBox("Video memory usage adds up quickly\nExample: 150MB / per avatar * 40 Avatars + 2GB World = 8GB\n=> Uses up all VRAM on an RTX 3070", MessageType.Info);
             EditorGUILayout.HelpBox("Video memory usage adds up quickly\n" +
                 "Taking into account a world VRAM usage of 2GB - If your model uses 150MB of VRAM and there were 40 of you, all 8 GB of VRAM would be used up on an RTX 3070.",
@@ -401,9 +401,9 @@ namespace Thry.AvatarHelpers
                     _texturesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_texturesFoldout, $"Textures  ({AvatarEvaluator.ToMebiByteString(_sizeAllTextures)})");
                     if (_texturesFoldout)
                     {
-                        EditorGUILayout.HelpBox("The determining factor of texture VRAM size is the resolution of the texutre and the used compression format.\n" +
+                        EditorGUILayout.HelpBox("The determining factor of texture VRAM size is the resolution of the texture and its compression format.\n" +
                             "Both can be changed in the importer settings of each texture.\n\n" +
-                            "Resolution: View your avatar from ~1 meter away. Reduce the texture size until you see a noticable drop in quality.\n" +
+                            "Resolution: View your avatar from ~1 meter away. Reduce the texture size until you see a noticeable drop in quality.\n" +
                             "Compression: BC7 or DXT5 for textures with alpha. DXT1 for images without alpha.\n\n" +
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
@@ -419,7 +419,6 @@ namespace Thry.AvatarHelpers
                                 if(texInfo.materials.Count < 1) {
                                     infoMessages.Add("This texture is used in a material swap");
                                 }
-
 
                                 // idk how to make a fake indent (because im using guilayout.button which ignores indents) so i just used a horizontal scope with a space :)
                                 EditorGUILayout.BeginHorizontal();
@@ -464,7 +463,7 @@ namespace Thry.AvatarHelpers
                                             int newFormat = EditorGUILayout.Popup(0, _compressionFormatOptions.Select(x => x.ToString()).ToArray(), GUILayout.Width(75), GUILayout.Height(20));
                                             if(newFormat != 0)
                                                 ChangeCompression(texInfo, _compressionFormatOptions[newFormat]);
-                                        }else
+                                        } else
                                         {
                                             if(GUILayout.Button(new GUIContent(texInfo.format), EditorStyles.label, GUILayout.Width(65), GUILayout.Height(20)))
                                                 Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
@@ -482,7 +481,7 @@ namespace Thry.AvatarHelpers
                                         string savedSize = AvatarEvaluator.ToShortMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
                                         if (GUILayout.Button($"{newFormat} → -{savedSize}", styleButtonTextFloatLeft, GUILayout.Width(120), GUILayout.Height(20))
                                             && EditorUtility.DisplayDialog("Confirm Compression Format Change!", $"You are about to change the compression format of texture '{texInfo.texture.name}' from {texInfo.format} => {newFormat}\n\n" +
-                                            $"If you wish to return this textures' compression to {texInfo.format}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
+                                            $"If you wish to return this texture's compression to {texInfo.format}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
                                         {
                                             ChangeCompression(texInfo, newFormat);
                                         }
@@ -673,7 +672,7 @@ namespace Thry.AvatarHelpers
                 int texIdx = 1;
                 foreach (KeyValuePair<Texture, bool> t in textures)
                 {
-                    EditorUtility.DisplayProgressBar("Getting VRAM Data", $"Calculating Texture size for {t.Key.name}", texIdx / (float)numTextures);
+                    EditorUtility.DisplayProgressBar("Getting VRAM Data", $"Calculating texture size for {t.Key.name}", texIdx / (float)numTextures);
                     TextureInfo texInfo = new TextureInfo();
                     texInfo = CalculateTextureSize(t.Key, texInfo);
                     texInfo.texture = t.Key;

@@ -1,8 +1,8 @@
 {
   "name": "de.thryrallo.vrc.avatar-performance-tools",
   "displayName": "Thry's Avatar Performance Tools",
-  "version": "1.3.2",
-  "description": "Calculated and evaluates some avatar metric not currently taking into account by vrchats ranking system. Most prominently gives a breakdown over VRAM usage of different parts of the avatar.",
+  "version": "1.3.3",
+  "description": "Calculates and evaluates some avatar metrics not currently taken into account by VRChat's ranking system. Most prominently, gives a breakdown of VRAM usage of different parts of the avatar.",
   "gitDependencies": {},
   "vpmDependencies": {},
   "legacyFolders": {},
