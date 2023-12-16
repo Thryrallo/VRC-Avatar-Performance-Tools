@@ -58,15 +58,15 @@ namespace Thry.AvatarHelpers {
         const int GRABPASS_LIMIT_EXCELLENT = 0;
         const int GRABPASS_LIMIT_MEDIUM = 1;
 
-        const int BLENDSHAPE_DATA_LIMIT_EXCELLENT = 500000;
-        const int BLENDSHAPE_DATA_LIMIT_GOOD = 1000000;
-        const int BLENDSHAPE_DATA_LIMIT_MEDIUM = 2000000;
-        const int BLENDSHAPE_DATA_LIMIT_POOR = 3000000;
-
         const int ANYSTATE_LIMIT_EXCELLENT = 50;
         const int ANYSTATE_LIMIT_GOOD = 80;
         const int ANYSTATE_LIMIT_MEDIUM = 100;
         const int ANYSTATE_LIMIT_POOR = 150;
+
+        const int BLENDSHAPE_DATA_LIMIT_EXCELLENT = 8000;
+        const int BLENDSHAPE_DATA_LIMIT_GOOD = 16000;
+        const int BLENDSHAPE_DATA_LIMIT_MEDIUM = 32000;
+        const int BLENDSHAPE_DATA_LIMIT_POOR = 50000;
 
         const int LAYER_LIMIT_EXCELLENT = 12;
         const int LAYER_LIMIT_GOOD = 20;
@@ -91,7 +91,6 @@ namespace Thry.AvatarHelpers {
 
         (SkinnedMeshRenderer renderer, int verticies, int blendshapeCount)[] _skinendMeshesWithBlendshapes;
         long _totalBlendshapeVerticies = 0;
-        long _totalBlendshapeData = 0;
         Quality _blendshapeQuality = Quality.Excellent;
         bool _blendshapeFoldout;
 
@@ -148,7 +147,7 @@ namespace Thry.AvatarHelpers {
             {
 #if VRC_SDK_VRCSDK3 && !UDON
                 IEnumerable<VRCAvatarDescriptor> avatars = new List<VRCAvatarDescriptor>();
-                for(int i=0;i<EditorSceneManager.loadedSceneCount;i++)
+                for(int i=0;i<SceneManager.loadedSceneCount;i++)
                     avatars = avatars.Concat( EditorSceneManager.GetSceneAt(i).GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<VRCAvatarDescriptor>()).Where( d => d.gameObject.activeInHierarchy) );
                 if(avatars.Count() > 0)
                 {
@@ -177,7 +176,7 @@ namespace Thry.AvatarHelpers {
                     DrawGrabpassFoldout();
                 }
                 //Blendshapes
-                _blendshapeFoldout = DrawSection(_blendshapeQuality, "Blendshapes", _totalBlendshapeData.ToString(), _blendshapeFoldout);
+                _blendshapeFoldout = DrawSection(_blendshapeQuality, "Blendshapes", _totalBlendshapeVerticies.ToString(), _blendshapeFoldout);
                 if(_blendshapeFoldout)
                 {
                     DrawBlendshapeFoldout();
@@ -328,7 +327,7 @@ namespace Thry.AvatarHelpers {
                             EditorGUILayout.LabelField("Blendshape Triangles: ", _totalBlendshapeVerticies.ToString());    
                     EditorGUILayout.EndHorizontal();
                     EditorGUILayout.BeginHorizontal(GUI.skin.box);
-                            EditorGUILayout.LabelField("Blendshape Data: ", _totalBlendshapeData.ToString());    
+                            EditorGUILayout.LabelField("#Meshes: ", _skinendMeshesWithBlendshapes.Length.ToString());    
                     EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.Space();
@@ -436,8 +435,7 @@ namespace Thry.AvatarHelpers {
 
             _skinendMeshesWithBlendshapes =  _avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh != null && r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3, r.sharedMesh.blendShapeCount)).OrderByDescending(i => i.Item2).ToArray();
             _totalBlendshapeVerticies = _skinendMeshesWithBlendshapes.Sum(i => i.verticies);
-            _totalBlendshapeData = _skinendMeshesWithBlendshapes.Sum(i => i.verticies * i.blendshapeCount);
-            _blendshapeQuality = GetQuality(_totalBlendshapeData, BLENDSHAPE_DATA_LIMIT_EXCELLENT, BLENDSHAPE_DATA_LIMIT_GOOD, BLENDSHAPE_DATA_LIMIT_MEDIUM, BLENDSHAPE_DATA_LIMIT_POOR);
+            _blendshapeQuality = GetQuality(_totalBlendshapeVerticies, BLENDSHAPE_DATA_LIMIT_EXCELLENT, BLENDSHAPE_DATA_LIMIT_GOOD, BLENDSHAPE_DATA_LIMIT_MEDIUM, BLENDSHAPE_DATA_LIMIT_POOR);
         }
 
         public static IEnumerable<Material>[] GetMaterials(GameObject avatar)
