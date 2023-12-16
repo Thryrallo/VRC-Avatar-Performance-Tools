@@ -1,26 +1,26 @@
-# 📦 https://vpm.thry.dev/ 📥 Add Here with the latest VCC!
+# Avatar Performance Tools
 
-# [Discord Server for all my Assets](https://discord.thryrallo.de/)
+## 📦 https://vpm.thry.dev/ 📥 Add here with the latest VCC!
 
-# Avatar-Performance-Tools
+## [Discord Server for all my Assets](https://discord.thryrallo.de/)
  
 ## Avatar Evaluator
-Calculated and evaluates some avatar metric not currently taking into account by vrchats ranking system.
+Calculates and evaluates some avatar metrics not currently taken into account by VRChat's ranking system.
 1. VRAM Size
 2. Grabpasses
 3. Blendshapes
-4. Any State transition counting
-5. Write default check
-6. Empty animator states check
+4. "Any State" transition count
+5. Write defaults check
+6. Empty animator state check
  
 ## VRAM Checker
-Calculates the VRAM the textures on your avatar use.
+Calculates the VRAM the textures on your avatar use.  
 Please use this to keep your VRAM usage down. High VRAM usage causes performance problems.
-#### Features
-- VRAM of only active and of all objects
-- Lists textures, meshes and their respective VRAM size
-- Gives feedback on the VRAM size of your avatar
 
+#### Features
+- Shows VRAM usage of only active and of all objects
+- Lists textures, meshes, and their respective VRAM size
+- Gives feedback on the VRAM size of your avatar
 - Includes materials from animations
 - Information Boxes regarding VRAM
 
@@ -28,9 +28,9 @@ Please use this to keep your VRAM usage down. High VRAM usage causes performance
 
 1. Open VCC. Go  to Settings -> Packages -> Click the "Add Repository" Button (Next to Installed Repositories)
 2. Paste the following URL and click the "Add" Button
-```sh 
-vpm add repo https://thryrallo.github.io/VRC-Avatar-Performance-Tools
-```
+    ```sh 
+    vpm add repo https://thryrallo.github.io/VRC-Avatar-Performance-Tools
+    ```
 3. In Creator Compantion click "Manage Project". In the top right under "Selected Repos" check the Avatar Performance Tools listing
 
 ## Installing with UPM (Unity Package Manager)

@@ -198,7 +198,7 @@ namespace Thry.AvatarHelpers {
                 if(_layerCountFoldout)
                 {
                     using(new DetailsFoldout("The more layers you have the more expensive the animator is to run. " +
-                        "Animators are running on the CPU, so in a CPU limited game like VRC the smaller the layer count, the better."))
+                        "Animators run on the CPU, so in a CPU-limited game like VRC the smaller the layer count, the better."))
                         {
 
                         }
@@ -212,10 +212,10 @@ namespace Thry.AvatarHelpers {
                 GUI.Label(r, "Write Defaults: ", EditorStyles.boldLabel);
                 r.x += 140;
                 GUI.Label(r, "" + _writeDefault);
-                EditorGUILayout.HelpBox("Unity needs all states in your animator to have the same write default value: Either all off or all on. "+
-                    "If a state is marked with write default it means that the values animated by this state will be set to their default values when not in this state. " +
-                    "This can be useful to make compact toggles, but is very prohhibeting when making more complex systems." +
-                    "Click here for more information to animator states.", MessageType.None);
+                EditorGUILayout.HelpBox("Unity needs all the states in your animator to have the same write default value: Either all off or all on. "+
+                    "If a state is marked with write defaults it means that the values animated by this state will be set to their default values when not in this state. " +
+                    "This can be useful to make compact toggles, but is very prohibiting when making more complex systems." +
+                    "Click here for more information on animator states.", MessageType.None);
                 if (Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
                     Application.OpenURL("https://docs.unity3d.com/Manual/class-State.html");
                 if (_writeDefaultoutliers.Length > 0)
@@ -317,8 +317,8 @@ namespace Thry.AvatarHelpers {
 
         void DrawBlendshapeFoldout()
         {
-            using(new DetailsFoldout("The performance impact of Blendshapes grows with polygon count. A general consense is that above 32.000 polygones splitting your mesh will improve performance." +
-                    " Click here for more information to blendshapes from the VRChat Documentation."))
+            using(new DetailsFoldout("The performance impact of blendshapes grows linearly with polygon count. The general consensus is that above 32,000 triangles splitting your mesh will improve performance." +
+                    " Click here for more information on blendshapes from the VRChat Documentation."))
             {
                 if(Event.current.type == EventType.MouseDown && GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
                     Application.OpenURL("https://docs.vrchat.com/docs/avatar-optimizing-tips#-except-when-youre-using-shapekeys");
