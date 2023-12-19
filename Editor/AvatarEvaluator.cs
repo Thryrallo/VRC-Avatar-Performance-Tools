@@ -147,7 +147,11 @@ namespace Thry.AvatarHelpers {
             {
 #if VRC_SDK_VRCSDK3 && !UDON
                 IEnumerable<VRCAvatarDescriptor> avatars = new List<VRCAvatarDescriptor>();
+#if UNITY_2020_1_OR_NEWER
                 for(int i=0;i<SceneManager.loadedSceneCount;i++)
+#else
+                for(int i=0;i<EditorSceneManager.sceneCount;i++)
+#endif
                     avatars = avatars.Concat( EditorSceneManager.GetSceneAt(i).GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<VRCAvatarDescriptor>()).Where( d => d.gameObject.activeInHierarchy) );
                 if(avatars.Count() > 0)
                 {

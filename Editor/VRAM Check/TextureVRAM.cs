@@ -43,39 +43,241 @@ namespace Thry.AvatarHelpers
         }
 
         //https://docs.unity3d.com/Manual/class-TextureImporterOverride.html
-        static Dictionary<TextureImporterFormat, int> BPP = new Dictionary<TextureImporterFormat, int>()
-    {
-        { TextureImporterFormat.BC7 , 8 },
-        { TextureImporterFormat.DXT5 , 8 },
-        { TextureImporterFormat.DXT5Crunched , 8 },
-        { TextureImporterFormat.RGBA64 , 64 },
-        { TextureImporterFormat.RGBA32 , 32 },
-        { TextureImporterFormat.RGBA16 , 16 },
-        { TextureImporterFormat.DXT1 , 4 },
-        { TextureImporterFormat.DXT1Crunched , 4 },
-        { TextureImporterFormat.RGB48 , 64 },
-        { TextureImporterFormat.RGB24 , 32 },
-        { TextureImporterFormat.RGB16 , 16 },
-        { TextureImporterFormat.BC5 , 8 },
-        { TextureImporterFormat.RG32 , 32 },
-        { TextureImporterFormat.BC4 , 4 },
-        { TextureImporterFormat.R8 , 8 },
-        { TextureImporterFormat.R16 , 16 },
-        { TextureImporterFormat.Alpha8 , 8 },
-        { TextureImporterFormat.RGBAHalf , 64 },
-        { TextureImporterFormat.BC6H , 8 },
-        { TextureImporterFormat.RGB9E5 , 32 },
-        { TextureImporterFormat.ETC2_RGBA8Crunched , 8 },
-        { TextureImporterFormat.ETC2_RGB4 , 4 },
-        { TextureImporterFormat.ETC2_RGBA8 , 8 },
-        { TextureImporterFormat.ETC2_RGB4_PUNCHTHROUGH_ALPHA , 4 },
-        { TextureImporterFormat.PVRTC_RGB2 , 2 },
-        { TextureImporterFormat.PVRTC_RGB4 , 4 },
-        { TextureImporterFormat.ARGB32 , 32 },
-        { TextureImporterFormat.ARGB16 , 16 }
-    };
 
-        static Dictionary<RenderTextureFormat, int> RT_BPP = new Dictionary<RenderTextureFormat, int>()
+        static Dictionary<TextureFormat, float> BPP = new Dictionary<TextureFormat, float>()
+        {
+        //
+        // Summary:
+        //     Alpha-only texture format, 8 bit integer.
+            { TextureFormat.Alpha8 , 9 },
+        //
+        // Summary:
+        //     A 16 bits/pixel texture format. Texture stores color with an alpha channel.
+            { TextureFormat.ARGB4444 , 16 },
+        //
+        // Summary:
+        //     Color texture format, 8-bits per channel.
+            { TextureFormat.RGB24 , 24 },
+        //
+        // Summary:
+        //     Color with alpha texture format, 8-bits per channel.
+            { TextureFormat.RGBA32 , 32 },
+        //
+        // Summary:
+        //     Color with alpha texture format, 8-bits per channel.
+            { TextureFormat.ARGB32 , 32 },
+        //
+        // Summary:
+        //     A 16 bit color texture format.
+            { TextureFormat.RGB565 , 16 },
+        //
+        // Summary:
+        //     Single channel (R) texture format, 16 bit integer.
+            { TextureFormat.R16 , 16 },
+        //
+        // Summary:
+        //     Compressed color texture format.
+            { TextureFormat.DXT1 , 4 },
+        //
+        // Summary:
+        //     Compressed color with alpha channel texture format.
+            { TextureFormat.DXT5 , 8 },
+        //
+        // Summary:
+        //     Color and alpha texture format, 4 bit per channel.
+            { TextureFormat.RGBA4444 , 16 },
+        //
+        // Summary:
+        //     Color with alpha texture format, 8-bits per channel.
+            { TextureFormat.BGRA32 , 32 },
+        //
+        // Summary:
+        //     Scalar (R) texture format, 16 bit floating point.
+            { TextureFormat.RHalf , 16 },
+        //
+        // Summary:
+        //     Two color (RG) texture format, 16 bit floating point per channel.
+            { TextureFormat.RGHalf , 32 },
+        //
+        // Summary:
+        //     RGB color and alpha texture format, 16 bit floating point per channel.
+            { TextureFormat.RGBAHalf , 64 },
+        //
+        // Summary:
+        //     Scalar (R) texture format, 32 bit floating point.
+            { TextureFormat.RFloat , 32 },
+        //
+        // Summary:
+        //     Two color (RG) texture format, 32 bit floating point per channel.
+            { TextureFormat.RGFloat , 64 },
+        //
+        // Summary:
+        //     RGB color and alpha texture format, 32-bit floats per channel.
+            { TextureFormat.RGBAFloat , 128 },
+        //
+        // Summary:
+        //     A format that uses the YUV color space and is often used for video encoding or
+        //     playback.
+            { TextureFormat.YUY2 , 16 },
+        //
+        // Summary:
+        //     RGB HDR format, with 9 bit mantissa per channel and a 5 bit shared exponent.
+            { TextureFormat.RGB9e5Float , 32 },
+        //
+        // Summary:
+        //     HDR compressed color texture format.
+            { TextureFormat.BC6H , 8 },
+        //
+        // Summary:
+        //     High quality compressed color texture format.
+            { TextureFormat.BC7 , 8 },
+        //
+        // Summary:
+        //     Compressed one channel (R) texture format.
+            { TextureFormat.BC4 , 4 },
+        //
+        // Summary:
+        //     Compressed two-channel (RG) texture format.
+            { TextureFormat.BC5 , 8 },
+        //
+        // Summary:
+        //     Compressed color texture format with Crunch compression for smaller storage sizes.
+            { TextureFormat.DXT1Crunched , 4 },
+        //
+        // Summary:
+        //     Compressed color with alpha channel texture format with Crunch compression for
+        //     smaller storage sizes.
+            { TextureFormat.DXT5Crunched , 8 },
+        //
+        // Summary:
+        //     PowerVR (iOS) 2 bits/pixel compressed color texture format.
+            { TextureFormat.PVRTC_RGB2 , 6 },
+        //
+        // Summary:
+        //     PowerVR (iOS) 2 bits/pixel compressed with alpha channel texture format.
+            { TextureFormat.PVRTC_RGBA2 , 8 },
+        //
+        // Summary:
+        //     PowerVR (iOS) 4 bits/pixel compressed color texture format.
+            { TextureFormat.PVRTC_RGB4 , 12 },
+        //
+        // Summary:
+        //     PowerVR (iOS) 4 bits/pixel compressed with alpha channel texture format.
+            { TextureFormat.PVRTC_RGBA4 , 16 },
+        //
+        // Summary:
+        //     ETC (GLES2.0) 4 bits/pixel compressed RGB texture format.
+            { TextureFormat.ETC_RGB4 , 12 },
+        //
+        // Summary:
+        //     ETC2 EAC (GL ES 3.0) 4 bitspixel compressed unsigned single-channel texture format.
+            { TextureFormat.EAC_R , 4 },
+        //
+        // Summary:
+        //     ETC2 EAC (GL ES 3.0) 4 bitspixel compressed signed single-channel texture format.
+            { TextureFormat.EAC_R_SIGNED , 4 },
+        //
+        // Summary:
+        //     ETC2 EAC (GL ES 3.0) 8 bitspixel compressed unsigned dual-channel (RG) texture
+        //     format.
+            { TextureFormat.EAC_RG , 8 },
+        //
+        // Summary:
+        //     ETC2 EAC (GL ES 3.0) 8 bitspixel compressed signed dual-channel (RG) texture
+        //     format.
+            { TextureFormat.EAC_RG_SIGNED , 8 },
+        //
+        // Summary:
+        //     ETC2 (GL ES 3.0) 4 bits/pixel compressed RGB texture format.
+            { TextureFormat.ETC2_RGB , 12 },
+        //
+        // Summary:
+        //     ETC2 (GL ES 3.0) 4 bits/pixel RGB+1-bit alpha texture format.
+            { TextureFormat.ETC2_RGBA1 , 12 },
+        //
+        // Summary:
+        //     ETC2 (GL ES 3.0) 8 bits/pixel compressed RGBA texture format.
+            { TextureFormat.ETC2_RGBA8 , 32 },
+        //
+        // Summary:
+        //     ASTC (4x4 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_4x4 , 8 },
+        //
+        // Summary:
+        //     ASTC (5x5 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_5x5 , 5.12f },
+        //
+        // Summary:
+        //     ASTC (6x6 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_6x6 , 3.55f },
+        //
+        // Summary:
+        //     ASTC (8x8 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_8x8 , 2 },
+        //
+        // Summary:
+        //     ASTC (10x10 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_10x10 , 1.28f },
+        //
+        // Summary:
+        //     ASTC (12x12 pixel block in 128 bits) compressed RGB texture format.
+            { TextureFormat.ASTC_12x12 , 1 },
+        //
+        // Summary:
+        //     Two color (RG) texture format, 8-bits per channel.
+            { TextureFormat.RG16 , 16 },
+        //
+        // Summary:
+        //     Single channel (R) texture format, 8 bit integer.
+            { TextureFormat.R8 , 8 },
+        //
+        // Summary:
+        //     Compressed color texture format with Crunch compression for smaller storage sizes.
+            { TextureFormat.ETC_RGB4Crunched , 12 },
+        //
+        // Summary:
+        //     Compressed color with alpha channel texture format using Crunch compression for
+        //     smaller storage sizes.
+            { TextureFormat.ETC2_RGBA8Crunched , 32 },
+        //
+        // Summary:
+        //     ASTC (4x4 pixel block in 128 bits) compressed RGB(A) HDR texture format.
+            { TextureFormat.ASTC_HDR_4x4 , 8 },
+        //
+        // Summary:
+        //     ASTC (5x5 pixel block in 128 bits) compressed RGB(A) HDR texture format.
+            { TextureFormat.ASTC_HDR_5x5 , 5.12f },
+        //
+        // Summary:
+        //     ASTC (6x6 pixel block in 128 bits) compressed RGB(A) HDR texture format.
+            { TextureFormat.ASTC_HDR_6x6 , 3.55f },
+        //
+        // Summary:
+        //     ASTC (8x8 pixel block in 128 bits) compressed RGB(A) texture format.
+            { TextureFormat.ASTC_HDR_8x8 , 2 },
+        //
+        // Summary:
+        //     ASTC (10x10 pixel block in 128 bits) compressed RGB(A) HDR texture format.
+            { TextureFormat.ASTC_HDR_10x10 , 1.28f },
+        //
+        // Summary:
+        //     ASTC (12x12 pixel block in 128 bits) compressed RGB(A) HDR texture format.
+            { TextureFormat.ASTC_HDR_12x12 , 1 },
+        //
+        // Summary:
+        //     Two channel (RG) texture format, 16 bit integer per channel.
+            { TextureFormat.RG32 , 32 },
+        //
+        // Summary:
+        //     Three channel (RGB) texture format, 16 bit integer per channel.
+            { TextureFormat.RGB48 , 48 },
+        //
+        // Summary:
+        //     Four channel (RGBA) texture format, 16 bit integer per channel.
+            { TextureFormat.RGBA64 , 64 }
+        };
+
+        static Dictionary<RenderTextureFormat, float> RT_BPP = new Dictionary<RenderTextureFormat, float>()
         {
             //
             // Summary:
@@ -239,10 +441,10 @@ namespace Thry.AvatarHelpers
             public string print;
             public long size;
             public bool isActive;
-            public int BPP;
+            public float BPP;
             public int minBPP;
-            public string format;
-            public TextureImporterFormat importFormat;
+            public string formatString;
+            public TextureFormat format;
             public bool hasAlpha;
 
             public List<Material> materials;
@@ -416,6 +618,9 @@ namespace Thry.AvatarHelpers
                             {
                                 // get info messages
                                 List<string> infoMessages = new List<string>();
+                                if(texInfo.formatString.Length < 1) {
+                                    infoMessages.Add("This texture is not compressable");
+                                }
                                 if(texInfo.materials.Count < 1) {
                                     infoMessages.Add("This texture is used in a material swap");
                                 }
@@ -455,17 +660,17 @@ namespace Thry.AvatarHelpers
                                     if(newResolution != resolution)
                                         ChangeImportSize(texInfo, newResolution);
 
-                                    if(string.IsNullOrWhiteSpace(texInfo.format) == false)
+                                    if(texInfo.formatString.Length > 0)
                                     {
-                                        if(texInfo.importFormat != 0)
+                                        if(texInfo.format != 0 && texInfo.texture is Texture2D)
                                         {
-                                            _compressionFormatOptions[0] = texInfo.importFormat;
+                                            _compressionFormatOptions[0] = ((TextureImporterFormat)texInfo.format);
                                             int newFormat = EditorGUILayout.Popup(0, _compressionFormatOptions.Select(x => x.ToString()).ToArray(), GUILayout.Width(75), GUILayout.Height(20));
                                             if(newFormat != 0)
                                                 ChangeCompression(texInfo, _compressionFormatOptions[newFormat]);
                                         } else
                                         {
-                                            if(GUILayout.Button(new GUIContent(texInfo.format), EditorStyles.label, GUILayout.Width(65), GUILayout.Height(20)))
+                                            if(GUILayout.Button(new GUIContent(texInfo.formatString), EditorStyles.label, GUILayout.Width(65), GUILayout.Height(20)))
                                                 Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
                                         }
                                     }else
@@ -473,17 +678,18 @@ namespace Thry.AvatarHelpers
                                         GUILayout.Space(65);
                                     }
                                     
-                                    if (string.IsNullOrWhiteSpace(texInfo.format) == false && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
+                                    if (texInfo.formatString.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
                                     {
                                         TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
-                                        TextureImporterFormat newFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
+                                        TextureImporterFormat newImporterFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
                                             TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
+                                        TextureFormat newFormat = newImporterFormat == TextureImporterFormat.BC7 ? TextureFormat.BC7 : TextureFormat.DXT1;
                                         string savedSize = AvatarEvaluator.ToShortMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, BPP[newFormat]));
                                         if (GUILayout.Button($"{newFormat} → -{savedSize}", styleButtonTextFloatLeft, GUILayout.Width(120), GUILayout.Height(20))
                                             && EditorUtility.DisplayDialog("Confirm Compression Format Change!", $"You are about to change the compression format of texture '{texInfo.texture.name}' from {texInfo.format} => {newFormat}\n\n" +
-                                            $"If you wish to return this texture's compression to {texInfo.format}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
+                                            $"If you wish to return this texture's compression to {texInfo.formatString}, you will have to do so manually as this action is not undo-able.\n\nAre you sure?", "Yes", "No"))
                                         {
-                                            ChangeCompression(texInfo, newFormat);
+                                            ChangeCompression(texInfo, newImporterFormat);
                                         }
                                     }
                                     else
@@ -824,44 +1030,55 @@ namespace Thry.AvatarHelpers
 
         static TextureInfo CalculateTextureSize(Texture t, TextureInfo info)
         {
-            string path = AssetDatabase.GetAssetPath(t);
-            if (t != null && path != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
+            if ( t is Texture2D)
             {
-                AssetImporter assetImporter = AssetImporter.GetAtPath(path);
-                if (assetImporter is TextureImporter)
+                TextureFormat format = ((Texture2D)t).format;
+                if(!BPP.TryGetValue(format, out info.BPP))
+                    info.BPP = 16;
+                info.formatString = format.ToString();
+                info.format = format;
+                info.size = TextureToBytesUsingBPP(t, info.BPP);
+
+                string path = AssetDatabase.GetAssetPath(t);
+                if(t != null && string.IsNullOrWhiteSpace(path) == false)
                 {
-                    TextureImporter textureImporter = (TextureImporter)assetImporter;
-                    TextureImporterFormat textureFormat = textureImporter.GetPlatformTextureSettings("PC").format;
-#pragma warning disable CS0618
-                    if (textureFormat == TextureImporterFormat.AutomaticCompressed) textureFormat = textureImporter.GetAutomaticFormat("PC");
-#pragma warning restore CS0618
-
-                    info.hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
-                    info.minBPP = (info.hasAlpha || textureImporter.textureType == TextureImporterType.NormalMap) ? 8 : 4;
-
-                    if (BPP.ContainsKey(textureFormat))
+                    AssetImporter assetImporter = AssetImporter.GetAtPath(path);
+                    if (assetImporter is TextureImporter)
                     {
-                        info.format = textureFormat.ToString();
-                        info.importFormat = textureFormat;
-                        info.BPP = BPP[textureFormat];
-                        info.size = TextureToBytesUsingBPP(t, BPP[textureFormat]);
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[Thry][VRAM] Does not have BPP for " + textureFormat);
+                        TextureImporter textureImporter = (TextureImporter)assetImporter;
+                        info.hasAlpha = textureImporter.DoesSourceTextureHaveAlpha();
+                        info.minBPP = (info.hasAlpha || textureImporter.textureType == TextureImporterType.NormalMap) ? 8 : 4;
                     }
                 }
-                else
+                
+            }else if(t is Texture2DArray)
+            {
+                Texture2DArray t2dArray = t as Texture2DArray;
+                if(!BPP.TryGetValue(t2dArray.format, out info.BPP))
+                    info.BPP = 16;
+                info.formatString = t2dArray.format.ToString();
+                info.format = t2dArray.format;
+                info.size = TextureToBytesUsingBPP(t, info.BPP) * t2dArray.depth;
+            } else if( t is Cubemap)
+            {
+                Cubemap cm = t as Cubemap;
+                if(!BPP.TryGetValue(cm.format, out info.BPP))
+                    info.BPP = 16;
+                info.formatString = cm.format.ToString();
+                info.format = cm.format;
+                info.size = TextureToBytesUsingBPP(t, info.BPP);
+                if (cm.dimension == TextureDimension.Tex3D)
                 {
-                    info.size = Profiler.GetRuntimeMemorySizeLong(t);
-                    info.BPP = (int)(info.size * 8 / (t.width * t.height));
+                    info.size *= 6;
                 }
             }
             else if (t is RenderTexture)
             {
                 RenderTexture rt = t as RenderTexture;
-                info.BPP = RT_BPP[rt.format] + rt.depth;
-                info.format = rt.format.ToString();
+                if(!RT_BPP.TryGetValue(rt.format, out info.BPP))
+                    info.BPP = 16;
+                info.BPP = info.BPP + rt.depth;
+                info.formatString = rt.format.ToString();
                 info.hasAlpha = rt.format == RenderTextureFormat.ARGB32 || rt.format == RenderTextureFormat.ARGBHalf || rt.format == RenderTextureFormat.ARGBFloat;
                 info.size = TextureToBytesUsingBPP(t, info.BPP);
             }
@@ -873,16 +1090,15 @@ namespace Thry.AvatarHelpers
             return info;
         }
 
-        static long TextureToBytesUsingBPP(Texture t, int bpp, float resolutionScale = 1)
+        static long TextureToBytesUsingBPP(Texture t, float bpp, float resolutionScale = 1)
         {
             int width = (int)(t.width * resolutionScale);
             int height = (int)(t.height * resolutionScale);
             long bytes = 0;
             if (t != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
             {
-                double mipmaps = 1;
-                for (int i = 0; i < t.mipmapCount; i++) mipmaps += Math.Pow(0.25, i + 1);
-                bytes = (long)(bpp * width * height * (t.mipmapCount > 1 ? mipmaps : 1) / 8);
+                for (int index = 0; index < t.mipmapCount; ++index)
+                    bytes += (long) Mathf.RoundToInt((float) ((width * height) >> 2 * index) * bpp / 8);
             }
             else if (t is RenderTexture)
             {
