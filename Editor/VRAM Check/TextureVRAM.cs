@@ -1095,7 +1095,7 @@ namespace Thry.AvatarHelpers
             int width = (int)(t.width * resolutionScale);
             int height = (int)(t.height * resolutionScale);
             long bytes = 0;
-            if (t != null && t is RenderTexture == false && t.dimension == UnityEngine.Rendering.TextureDimension.Tex2D)
+            if (t is Texture2D || t is Texture2DArray || t is Cubemap)
             {
                 for (int index = 0; index < t.mipmapCount; ++index)
                     bytes += (long) Mathf.RoundToInt((float) ((width * height) >> 2 * index) * bpp / 8);
