@@ -660,9 +660,12 @@ namespace Thry.AvatarHelpers
                                     if(newResolution != resolution)
                                         ChangeImportSize(texInfo, newResolution);
 
+                                    TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
+                                    bool isTextureWithChangableFormat = texInfo.formatString.Length > 0 && texInfo.texture is Texture2D && importer != null;
+                                    // importer == null happens for e.g. DDS textures
                                     if(texInfo.formatString.Length > 0)
                                     {
-                                        if(texInfo.format != 0 && texInfo.texture is Texture2D)
+                                        if(texInfo.format != 0 && isTextureWithChangableFormat)
                                         {
                                             _compressionFormatOptions[0] = ((TextureImporterFormat)texInfo.format);
                                             int newFormat = EditorGUILayout.Popup(0, _compressionFormatOptions.Select(x => x.ToString()).ToArray(), GUILayout.Width(75), GUILayout.Height(20));
@@ -670,17 +673,16 @@ namespace Thry.AvatarHelpers
                                                 ChangeCompression(texInfo, _compressionFormatOptions[newFormat]);
                                         } else
                                         {
-                                            if(GUILayout.Button(new GUIContent(texInfo.formatString), EditorStyles.label, GUILayout.Width(65), GUILayout.Height(20)))
+                                            if(GUILayout.Button(new GUIContent(texInfo.formatString), EditorStyles.label, GUILayout.Width(75), GUILayout.Height(20)))
                                                 Application.OpenURL("https://docs.unity.cn/2019.4/Documentation/Manual/class-TextureImporterOverride.html");
                                         }
                                     }else
                                     {
-                                        GUILayout.Space(65);
+                                        GUILayout.Space(75);
                                     }
                                     
-                                    if (texInfo.formatString.Length > 0 && texInfo.texture is Texture2D && texInfo.BPP > texInfo.minBPP)
+                                    if (isTextureWithChangableFormat && texInfo.BPP > texInfo.minBPP)
                                     {
-                                        TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texInfo.texture)) as TextureImporter;
                                         TextureImporterFormat newImporterFormat = texInfo.hasAlpha || importer.textureType == TextureImporterType.NormalMap ?
                                             TextureImporterFormat.BC7 : TextureImporterFormat.DXT1;
                                         TextureFormat newFormat = newImporterFormat == TextureImporterFormat.BC7 ? TextureFormat.BC7 : TextureFormat.DXT1;
@@ -697,7 +699,7 @@ namespace Thry.AvatarHelpers
                                         EditorGUILayout.GetControlRect(GUILayout.Width(120), GUILayout.Height(20));
                                     }
 
-                                    if(resolution > 2048)
+                                    if(resolution > 2048 && importer != null)
                                     {
                                         string savedSize = AvatarEvaluator.ToShortMebiByteString(texInfo.size - TextureToBytesUsingBPP(texInfo.texture, texInfo.BPP, 2048f / resolution));
                                         if (GUILayout.Button($"2k → -{savedSize}", styleButtonTextFloatLeft, GUILayout.Width(120), GUILayout.Height(20)))
