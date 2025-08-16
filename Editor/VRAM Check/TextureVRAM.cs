@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlTypes;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -805,12 +806,13 @@ namespace Thry.AvatarHelpers
             foreach (Material m in materials[1])
             {
                 if (m == null) continue;
-                int[] textureIds = m.GetTexturePropertyNameIDs();
                 bool isActive = materials[0].Contains(m);
-                foreach (int id in textureIds)
+
+                // Get all texture properties from the material (including inherited ones)
+                HashSet<Texture> materialTextures = GetAllTexturesFromMaterial(m);
+
+                foreach (Texture t in materialTextures)
                 {
-                    if (!m.HasProperty(id)) continue;
-                    Texture t = m.GetTexture(id);
                     if (t == null) continue;
                     if (textures.ContainsKey(t))
                     {
@@ -823,6 +825,129 @@ namespace Thry.AvatarHelpers
                 }
             }
             return textures;
+        }
+
+        /// <summary>
+        /// Gets all textures from a material, including those inherited from parent materials in Material Variants
+        /// </summary>
+        static HashSet<Texture> GetAllTexturesFromMaterial(Material material)
+        {
+            HashSet<Texture> textures = new HashSet<Texture>();
+
+            if (material == null || material.shader == null) return textures;
+
+            // Get all texture property names from the shader
+            int propertyCount = ShaderUtil.GetPropertyCount(material.shader);
+            for (int i = 0; i < propertyCount; i++)
+            {
+                if (ShaderUtil.GetPropertyType(material.shader, i) == ShaderUtil.ShaderPropertyType.TexEnv)
+                {
+                    string propertyName = ShaderUtil.GetPropertyName(material.shader, i);
+                    int propertyId = Shader.PropertyToID(propertyName);
+
+                    // Try to get texture from current material
+                    if (material.HasProperty(propertyId))
+                    {
+                        Texture texture = material.GetTexture(propertyId);
+                        if (texture != null)
+                        {
+                            textures.Add(texture);
+                        }
+                    }
+                }
+            }
+
+            // Check for Material Variant parent using SerializedObject
+            SerializedObject serializedMaterial = new SerializedObject(material);
+            SerializedProperty parentProperty = serializedMaterial.FindProperty("m_Parent");
+
+            if (parentProperty != null && parentProperty.objectReferenceValue is Material variantParent)
+            {
+                // This is a Material Variant, get textures from parent
+                HashSet<Texture> parentTextures = GetAllTexturesFromMaterial(variantParent);
+                foreach (Texture parentTexture in parentTextures)
+                {
+                    string propertyName = GetTexturePropertyName(variantParent, parentTexture);
+                    if (!string.IsNullOrEmpty(propertyName))
+                    {
+                        int propertyId = Shader.PropertyToID(propertyName);
+                        // If the variant doesn't override this property, include the parent's texture
+                        if (!material.HasProperty(propertyId) || material.GetTexture(propertyId) == null)
+                        {
+                            textures.Add(parentTexture);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: Check if this is a Material Variant by examining asset structure
+                string assetPath = AssetDatabase.GetAssetPath(material);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    Material[] subAssets = AssetDatabase.LoadAllAssetRepresentationsAtPath(assetPath).OfType<Material>().ToArray();
+
+                    if (subAssets.Length > 1)
+                    {
+                        // Find potential parent material
+                        Material assetParent = subAssets.FirstOrDefault(m => m != material && IsParentMaterial(m, subAssets));
+
+                        if (assetParent != null)
+                        {
+                            HashSet<Texture> parentTextures = GetAllTexturesFromMaterial(assetParent);
+                            foreach (Texture parentTexture in parentTextures)
+                            {
+                                string propertyName = GetTexturePropertyName(assetParent, parentTexture);
+                                if (!string.IsNullOrEmpty(propertyName))
+                                {
+                                    int propertyId = Shader.PropertyToID(propertyName);
+                                    if (!material.HasProperty(propertyId) || material.GetTexture(propertyId) == null)
+                                    {
+                                        textures.Add(parentTexture);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return textures;
+        }
+
+        /// <summary>
+        /// Determines if a material is a parent material (not a variant itself)
+        /// </summary>
+        static bool IsParentMaterial(Material material, Material[] allMaterials)
+        {
+            // A parent material typically doesn't reference other materials in the same asset
+            // This is a heuristic and might need adjustment based on Unity's internal structure
+            return material.name == Path.GetFileNameWithoutExtension(AssetDatabase.GetAssetPath(material));
+        }
+
+        /// <summary>
+        /// Gets the property name for a given texture in a material
+        /// </summary>
+        static string GetTexturePropertyName(Material material, Texture texture)
+        {
+            if (material == null || material.shader == null || texture == null) return null;
+            
+            int propertyCount = ShaderUtil.GetPropertyCount(material.shader);
+            for (int i = 0; i < propertyCount; i++)
+            {
+                if (ShaderUtil.GetPropertyType(material.shader, i) == ShaderUtil.ShaderPropertyType.TexEnv)
+                {
+                    string propertyName = ShaderUtil.GetPropertyName(material.shader, i);
+                    int propertyId = Shader.PropertyToID(propertyName);
+                    
+                    if (material.HasProperty(propertyId) && material.GetTexture(propertyId) == texture)
+                    {
+                        return propertyName;
+                    }
+                }
+            }
+
+            return null;
         }
 
         public static long QuickCalc(GameObject avatar)
