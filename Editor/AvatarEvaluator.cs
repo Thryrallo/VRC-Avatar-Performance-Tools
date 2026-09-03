@@ -418,23 +418,26 @@ namespace Thry.AvatarHelpers {
             _grabpassQuality = _grabpassCount > GRABPASS_LIMIT_MEDIUM ? Quality.VeryPoor : _grabpassCount > GRABPASS_LIMIT_EXCELLENT ? Quality.Medium : Quality.Excellent;
 #if VRC_SDK_VRCSDK3 && !UDON
             VRCAvatarDescriptor descriptor = _avatar.GetComponent<VRCAvatarDescriptor>();
-            IEnumerable<AnimatorControllerLayer> layers = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
-                Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Where(l => l != null);
-            IEnumerable<AnimatorStateMachine> statesMachines = layers.Select(l => l.stateMachine).Where(s => s != null);
-            _anyStateTransitions = statesMachines.SelectMany(l => l.anyStateTransitions).Count();
-            _anyStateTransitionsQuality = GetQuality(_anyStateTransitions, ANYSTATE_LIMIT_EXCELLENT, ANYSTATE_LIMIT_GOOD, ANYSTATE_LIMIT_MEDIUM, ANYSTATE_LIMIT_POOR);
-            IEnumerable<(AnimatorState,string)> states = statesMachines.SelectMany(m => m.states.Select(s => (s.state, m.name+"/"+s.state.name)));
+            if (descriptor)
+            {
+                IEnumerable<AnimatorControllerLayer> layers = descriptor.baseAnimationLayers.Union(descriptor.specialAnimationLayers).Select(a => a.animatorController).
+                    Where(a => a != null).SelectMany(a => (a as AnimatorController).layers).Where(l => l != null);
+                IEnumerable<AnimatorStateMachine> statesMachines = layers.Select(l => l.stateMachine).Where(s => s != null);
+                _anyStateTransitions = statesMachines.SelectMany(l => l.anyStateTransitions).Count();
+                _anyStateTransitionsQuality = GetQuality(_anyStateTransitions, ANYSTATE_LIMIT_EXCELLENT, ANYSTATE_LIMIT_GOOD, ANYSTATE_LIMIT_MEDIUM, ANYSTATE_LIMIT_POOR);
+                IEnumerable<(AnimatorState,string)> states = statesMachines.SelectMany(m => m.states.Select(s => (s.state, m.name+"/"+s.state.name)));
 
-            _emptyStates = states.Where(s => s.Item1.motion == null).Select(s => s.Item2).ToArray();
+                _emptyStates = states.Where(s => s.Item1.motion == null).Select(s => s.Item2).ToArray();
 
-            IEnumerable<(AnimatorState, string)> wdOn = states.Where(s => s.Item1.writeDefaultValues);
-            IEnumerable<(AnimatorState, string)> wdOff = states.Where(s => !s.Item1.writeDefaultValues);
-            _writeDefault = wdOn.Count() >= wdOff.Count();
-            if (_writeDefault) _writeDefaultoutliers = wdOff.Select(s => s.Item2).ToArray();
-            else _writeDefaultoutliers = wdOn.Select(s => s.Item2).ToArray();
+                IEnumerable<(AnimatorState, string)> wdOn = states.Where(s => s.Item1.writeDefaultValues);
+                IEnumerable<(AnimatorState, string)> wdOff = states.Where(s => !s.Item1.writeDefaultValues);
+                _writeDefault = wdOn.Count() >= wdOff.Count();
+                if (_writeDefault) _writeDefaultoutliers = wdOff.Select(s => s.Item2).ToArray();
+                else _writeDefaultoutliers = wdOn.Select(s => s.Item2).ToArray();
 
-            _layerCount = layers.Count();
-            _layerCountQuality = GetQuality(_layerCount, LAYER_LIMIT_EXCELLENT, LAYER_LIMIT_GOOD, LAYER_LIMIT_MEDIUM, LAYER_LIMIT_POOR);
+                _layerCount = layers.Count();
+                _layerCountQuality = GetQuality(_layerCount, LAYER_LIMIT_EXCELLENT, LAYER_LIMIT_GOOD, LAYER_LIMIT_MEDIUM, LAYER_LIMIT_POOR);
+            }
 #endif
 
             _skinendMeshesWithBlendshapes =  _avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true).Where(r => r.sharedMesh != null && r.sharedMesh.blendShapeCount > 0).Select(r => (r, r.sharedMesh.triangles.Length / 3, r.sharedMesh.blendShapeCount)).OrderByDescending(i => i.Item2).ToArray();
