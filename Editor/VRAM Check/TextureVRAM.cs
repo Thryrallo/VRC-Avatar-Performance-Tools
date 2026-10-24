@@ -11,6 +11,8 @@ using UnityEngine.Rendering;
 
 namespace Thry.AvatarHelpers
 {
+
+    
     public class TextureVRAM : EditorWindow
     {
         [MenuItem("Thry/Avatar/VRAM")]
@@ -483,14 +485,34 @@ namespace Thry.AvatarHelpers
         GUIContent refreshIcon;
         Texture infoIcon;
 
+
         bool _texturesFoldout;
         bool _meshesFoldout;
 
-        int[] _textureSizeOptions = new int[] { 0, 128, 256, 512, 1024, 2048, 4096, 8192 };
-        
-        // Bulk Resize Textures - Nommiiee
-        string[] _bulkScaleLabels = new string[] { "¼ size", "½ size", "2× size", "4× size" };
-        float[] _bulkScaleValues = new float[] { 0.25f, 0.5f, 2f, 4f };
+
+
+        // Table styles for the bulk resize preview - Change by - Nommiiee
+        GUIStyle _tableHeaderStyle;
+        GUIStyle _tableCellStyle;
+        GUIStyle _tableSavingStyle;
+        GUIStyle _tableLossStyle;
+        // Bulk Resizing Feature Parameters/Variables - Change By - Nommiiee
+        int[] _textureSizeOptions = new int[] { 0, 128, 256, 512, 1024, 2048, 4096, 8192 }; 
+        string[] _bulkScaleLabels = new string[] { "¼ size", "½ size", "2× size", "4× size" }; // Bulk resize preset button labels
+
+        float[] _bulkScaleValues = new float[] { 0.25f, 0.5f, 2f, 4f }; // Bulk resize scale factor per button, same order as the labels
+        long[] _bulkSavings;               // estimated bytes saved per button (negative = grows)
+        bool _bulkPreviewIncludeInactive;  // detects when the toggle changed
+
+         // Threshold dropdown values: bulk resize only touches textures larger than this (0 = all) - Change by - Nommiiee
+        int[] _bulkThresholdValues = new int[] { 0, 512, 1024, 2048, 4096 };
+
+        // Threshold dropdown labels, same order as the values - Change by - Nommiiee
+        string[] _bulkThresholdLabels = new string[] { "All sizes", "Larger than 512", "Larger than 1024", "Larger than 2048", "Larger than 4096" };
+
+        // Currently selected threshold (longest side, in pixels) - Change by - Nommiiee
+        int _bulkMinResolution = 0;
+
         TextureImporterFormat[] _compressionFormatOptions = new TextureImporterFormat[]{ TextureImporterFormat.Automatic, TextureImporterFormat.Automatic, TextureImporterFormat.BC7, TextureImporterFormat.DXT1, TextureImporterFormat.DXT5 };
 
 
@@ -506,6 +528,14 @@ namespace Thry.AvatarHelpers
         private void InitilizeStyles()
         {
             styleButtonTextFloatLeft = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
+             // Bulk resize preview table styles (right aligned numbers, green = saves, red = grows) - Change by - Nommiiee
+            _tableHeaderStyle = new GUIStyle(EditorStyles.boldLabel) { alignment = TextAnchor.MiddleRight };
+            _tableCellStyle = new GUIStyle(EditorStyles.label) { alignment = TextAnchor.MiddleRight };
+            _tableSavingStyle = new GUIStyle(_tableCellStyle);
+            _tableSavingStyle.normal.textColor = new UnityEngine.Color(0.35f, 0.8f, 0.35f);
+            _tableLossStyle = new GUIStyle(_tableCellStyle);
+            _tableLossStyle.normal.textColor = new UnityEngine.Color(0.9f, 0.45f, 0.4f);
+          
         }
 
         private void OnGUI()
@@ -614,20 +644,39 @@ namespace Thry.AvatarHelpers
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
 
-                        //  Editor Option For Bulk Resizing
-                        EditorGUILayout.LabelField("Resize all textures at once - Feature By Nommiiee", EditorStyles.boldLabel);
+                        // Threshold dropdown, changing it invalidates the cached savings preview - Change by - Nommiiee
+                        EditorGUI.BeginChangeCheck();
+                        _bulkMinResolution = EditorGUILayout.IntPopup("Only resize textures", _bulkMinResolution, _bulkThresholdLabels, _bulkThresholdValues);
+                        if (EditorGUI.EndChangeCheck())
+                            _bulkSavings = null;
+
+                        // Rebuild the cached savings preview only when needed, not every repaint - Change by - Nommiiee
+                        if (_bulkSavings == null || _bulkPreviewIncludeInactive != _includeInactive)
+                        RefreshBulkPreview();
+    
+                        // Bulk resize button row, buttons only, the numbers now live in the table below - Change by - Nommiiee
+                        EditorGUILayout.LabelField("Resize all textures at once (savings are estimates) - Feature by Nommiiee", EditorStyles.boldLabel);
                         using (new EditorGUILayout.HorizontalScope())
                         {
                             for (int i = 0; i < _bulkScaleLabels.Length; i++)
                             {
-                                if (GUILayout.Button(_bulkScaleLabels[i], GUILayout.Height(22)))
+                                bool growing = _bulkScaleValues[i] > 1f;
+                                string tooltip = growing
+                                    ? "Upper bound. Textures can't grow past their source image."
+                                    : "Applies this resize to all matching textures";
+
+                                if (GUILayout.Button(new GUIContent(_bulkScaleLabels[i], tooltip), GUILayout.Height(25)))
                                 {
-                                    ChangeAllImportSizes(_bulkScaleValues[i], _bulkScaleLabels[i]);
-                                    GUIUtility.ExitGUI(); // list gets rebuilt, so stop drawing this frame
+                                    ChangeAllImportSizes(_bulkScaleValues[i], _bulkScaleLabels[i], _bulkSavings[i]);
+                                    GUIUtility.ExitGUI(); // list gets rebuilt, so stop drawing this frame - Change by - Nommiiee
                                 }
                             }
                         }
+
+                        // Usage preview table - Change by - Nommiiee
+                        DrawBulkPreviewTable();
                         EditorGUILayout.Space(5);
+
                         _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(Math.Min(500, _texturesList.Count * 30)));
                         for (int texIdx = 0; texIdx < _texturesList.Count; texIdx++)
                         {
@@ -805,35 +854,40 @@ namespace Thry.AvatarHelpers
             Calc(_avatar);
         }
 
-        // Bulk Resize Texture Method - Nommiiee
-        void ChangeAllImportSizes(float scale, string label)
+        // Apply a resize to every bulk target at once, with confirm dialog and estimate - Change by - Nommiiee
+        void ChangeAllImportSizes(float scale, string label, long estimatedSavings)
         {
-            // Respects the "Show assets of disabled Objects" toggle
-            List<TextureInfo> targets = _texturesList
-                .Where(t => (_includeInactive || t.isActive) && t.texture is Texture2D)
-                .ToList();
-
+            List<TextureInfo> targets = GetBulkTargets();
             if (targets.Count == 0) return;
 
+            string estimate = estimatedSavings > 0
+                ? $"Estimated saving: ~{AvatarEvaluator.ToShortMebiByteString(estimatedSavings)} of VRAM."
+                : "No VRAM saving expected.";
+
+                // Tell the user which threshold is active so the texture count makes sense - Change by - Nommiiee
+            string thresholdNote = _bulkMinResolution > 0
+                ? $"\nOnly textures larger than {_bulkMinResolution}px are included."
+                : "";
+
             if (!EditorUtility.DisplayDialog("Confirm Bulk Resize",
-                $"You are about to change the max import size of {targets.Count} texture(s) to {label} (per side, rounded to the nearest power of two).\n\n" +
-                "This is not undo-able. Are you sure?", "Yes", "No"))
+                $"You are about to change the max import size of {targets.Count} texture(s) to {label} (per side, rounded to the nearest power of two).{thresholdNote}\n\n" +
+                $"{estimate}\n\nThis is not undo-able. Are you sure?", "Yes", "No"))
                 return;
 
             int changed = 0;
             try
             {
-                AssetDatabase.StartAssetEditing(); // batch all reimports into one pass
+                AssetDatabase.StartAssetEditing();
                 for (int i = 0; i < targets.Count; i++)
                 {
                     Texture tex = targets[i].texture;
                     EditorUtility.DisplayProgressBar("Resizing Textures", tex.name, i / (float)targets.Count);
 
                     TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(tex)) as TextureImporter;
-                    if (importer == null) continue; // e.g. DDS or non-importable textures
+                    if (importer == null) continue;
 
                     int resolution = Mathf.Max(tex.width, tex.height);
-                    int newSize = Mathf.Clamp(Mathf.ClosestPowerOfTwo(Mathf.RoundToInt(resolution * scale)), 32, 8192);
+                    int newSize = GetScaledSize(resolution, scale);
                     if (newSize == resolution) continue;
 
                     importer.maxTextureSize = newSize;
@@ -851,7 +905,83 @@ namespace Thry.AvatarHelpers
             }
 
             Debug.Log($"[VRAM Calculator] Resized {changed} texture(s) by {label}.");
-            Calc(_avatar); // recalculate once, not per texture
+            Calc(_avatar);
+        }
+
+        // 
+        static int GetScaledSize(int resolution, float scale) =>
+            Mathf.Clamp(Mathf.ClosestPowerOfTwo(Mathf.RoundToInt(resolution * scale)), 32, 8192);
+
+        // One place that decides what the bulk buttons touch, so preview and apply always agree
+        // Single source of truth for which textures the bulk buttons touch, so preview and apply agree.
+        // Now also skips textures at or below the selected threshold - Change by - Nommiiee
+        List<TextureInfo> GetBulkTargets() => _texturesList
+            .Where(t => (_includeInactive || t.isActive)
+                    && t.texture is Texture2D
+                    && Mathf.Max(t.texture.width, t.texture.height) > _bulkMinResolution // Threshold filter - Change by - Nommiiee
+                    && AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(t.texture)) is TextureImporter)
+            .ToList();
+
+        // Compute the estimated VRAM change for each bulk button and cache it
+        void RefreshBulkPreview()
+        {
+            List<TextureInfo> targets = GetBulkTargets();
+            _bulkSavings = new long[_bulkScaleValues.Length];
+
+            for (int i = 0; i < _bulkScaleValues.Length; i++)
+            {
+                foreach (TextureInfo t in targets)
+                {
+                    int resolution = Mathf.Max(t.texture.width, t.texture.height);
+                    int newSize = GetScaledSize(resolution, _bulkScaleValues[i]);
+                    if (newSize == resolution) continue;
+                    _bulkSavings[i] += t.size - TextureToBytesUsingBPP(t.texture, t.BPP, (float)newSize / resolution);
+                }
+            }
+            _bulkPreviewIncludeInactive = _includeInactive;
+        }
+        // Format the savings text shown on the buttons ("-38 MB", "up to +12 MB", "no change") 
+        static string FormatSavings(long bytes, bool isUpperBound)
+        {
+            if (bytes == 0) return "no change";
+            string size = AvatarEvaluator.ToShortMebiByteString(Math.Abs(bytes));
+            if (bytes > 0) return $"-{size}";
+            return isUpperBound ? $"up to +{size}" : $"+{size}";
+        }
+        // Draws Current Usage / Updated Usage / Estimated Saving for every bulk option - Change by - Nommiiee
+        void DrawBulkPreviewTable()
+        {
+            const float labelWidth = 80;
+            const float colMinWidth = 90;
+
+            using (new EditorGUILayout.VerticalScope(GUI.skin.box))
+            {
+                // Header
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Label("Resize", EditorStyles.boldLabel, GUILayout.Width(labelWidth));
+                    GUILayout.Label("Current Usage", _tableHeaderStyle, GUILayout.MinWidth(colMinWidth));
+                    GUILayout.Label("Updated Usage", _tableHeaderStyle, GUILayout.MinWidth(colMinWidth));
+                    GUILayout.Label("Estimated Saving", _tableHeaderStyle, GUILayout.MinWidth(colMinWidth));
+                }
+
+                // One row per bulk option
+                for (int i = 0; i < _bulkScaleLabels.Length; i++)
+                {
+                    bool growing = _bulkScaleValues[i] > 1f;
+                    long saving = _bulkSavings[i];
+                    long updated = _sizeAllTextures - saving;
+                    string upTo = growing && saving < 0 ? "up to " : ""; // growing is only an upper bound
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        GUILayout.Label(_bulkScaleLabels[i], GUILayout.Width(labelWidth));
+                        GUILayout.Label(AvatarEvaluator.ToMebiByteString(_sizeAllTextures), _tableCellStyle, GUILayout.MinWidth(colMinWidth));
+                        GUILayout.Label(upTo + AvatarEvaluator.ToMebiByteString(updated), _tableCellStyle, GUILayout.MinWidth(colMinWidth));
+                        GUILayout.Label(FormatSavings(saving, growing), saving > 0 ? _tableSavingStyle : saving < 0 ? _tableLossStyle : _tableCellStyle, GUILayout.MinWidth(colMinWidth));
+                    }
+                }
+            }
         }
 
         static void GUILine(int i_height = 1)
@@ -938,6 +1068,8 @@ namespace Thry.AvatarHelpers
                 EditorUtility.DisplayProgressBar("Getting VRAM Data", "Getting Textures", 0.5f);
                 Dictionary<Texture, bool> textures = GetTextures(avatar);
                 _texturesList = new List<TextureInfo>();
+
+                _bulkSavings = null;// Invalidate bulk savings preview after any recalculation - Nommiiee
                 _sizeAll = 0;
                 _sizeActive = 0;
                 _sizeAllTextures = 0;
