@@ -487,6 +487,10 @@ namespace Thry.AvatarHelpers
         bool _meshesFoldout;
 
         int[] _textureSizeOptions = new int[] { 0, 128, 256, 512, 1024, 2048, 4096, 8192 };
+        
+        // Bulk Resize Textures - Nommiiee
+        string[] _bulkScaleLabels = new string[] { "¼ size", "½ size", "2× size", "4× size" };
+        float[] _bulkScaleValues = new float[] { 0.25f, 0.5f, 2f, 4f };
         TextureImporterFormat[] _compressionFormatOptions = new TextureImporterFormat[]{ TextureImporterFormat.Automatic, TextureImporterFormat.Automatic, TextureImporterFormat.BC7, TextureImporterFormat.DXT1, TextureImporterFormat.DXT5 };
 
 
@@ -610,6 +614,20 @@ namespace Thry.AvatarHelpers
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
 
+                        //  Editor Option For Bulk Resizing
+                        EditorGUILayout.LabelField("Resize all textures at once - Feature By Nommiiee", EditorStyles.boldLabel);
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            for (int i = 0; i < _bulkScaleLabels.Length; i++)
+                            {
+                                if (GUILayout.Button(_bulkScaleLabels[i], GUILayout.Height(22)))
+                                {
+                                    ChangeAllImportSizes(_bulkScaleValues[i], _bulkScaleLabels[i]);
+                                    GUIUtility.ExitGUI(); // list gets rebuilt, so stop drawing this frame
+                                }
+                            }
+                        }
+                        EditorGUILayout.Space(5);
                         _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(Math.Min(500, _texturesList.Count * 30)));
                         for (int texIdx = 0; texIdx < _texturesList.Count; texIdx++)
                         {
@@ -785,6 +803,55 @@ namespace Thry.AvatarHelpers
             importer.SetPlatformTextureSettings(settings);
             importer.SaveAndReimport();
             Calc(_avatar);
+        }
+
+        // Bulk Resize Texture Method - Nommiiee
+        void ChangeAllImportSizes(float scale, string label)
+        {
+            // Respects the "Show assets of disabled Objects" toggle
+            List<TextureInfo> targets = _texturesList
+                .Where(t => (_includeInactive || t.isActive) && t.texture is Texture2D)
+                .ToList();
+
+            if (targets.Count == 0) return;
+
+            if (!EditorUtility.DisplayDialog("Confirm Bulk Resize",
+                $"You are about to change the max import size of {targets.Count} texture(s) to {label} (per side, rounded to the nearest power of two).\n\n" +
+                "This is not undo-able. Are you sure?", "Yes", "No"))
+                return;
+
+            int changed = 0;
+            try
+            {
+                AssetDatabase.StartAssetEditing(); // batch all reimports into one pass
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    Texture tex = targets[i].texture;
+                    EditorUtility.DisplayProgressBar("Resizing Textures", tex.name, i / (float)targets.Count);
+
+                    TextureImporter importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(tex)) as TextureImporter;
+                    if (importer == null) continue; // e.g. DDS or non-importable textures
+
+                    int resolution = Mathf.Max(tex.width, tex.height);
+                    int newSize = Mathf.Clamp(Mathf.ClosestPowerOfTwo(Mathf.RoundToInt(resolution * scale)), 32, 8192);
+                    if (newSize == resolution) continue;
+
+                    importer.maxTextureSize = newSize;
+                    TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings("PC");
+                    settings.maxTextureSize = newSize;
+                    importer.SetPlatformTextureSettings(settings);
+                    importer.SaveAndReimport();
+                    changed++;
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                EditorUtility.ClearProgressBar();
+            }
+
+            Debug.Log($"[VRAM Calculator] Resized {changed} texture(s) by {label}.");
+            Calc(_avatar); // recalculate once, not per texture
         }
 
         static void GUILine(int i_height = 1)
