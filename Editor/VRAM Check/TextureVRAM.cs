@@ -528,7 +528,6 @@ namespace Thry.AvatarHelpers
             GUILine();
 
             EditorGUILayout.LabelField("Input", EditorStyles.boldLabel);
-            EditorGUI.BeginChangeCheck();
             using (new EditorGUILayout.HorizontalScope())
             {
                 //GUILayout.Label("Avatar", GUILayout.Width(40));
@@ -539,6 +538,7 @@ namespace Thry.AvatarHelpers
                 }
                 GUI.enabled = true;
 
+                EditorGUI.BeginChangeCheck();
                 _avatar = (GameObject)EditorGUILayout.ObjectField(GUIContent.none, _avatar, typeof(GameObject), true, GUILayout.Height(30));
                 if (EditorGUI.EndChangeCheck() && _avatar != null) {
                     Calc(_avatar);
