@@ -610,7 +610,7 @@ namespace Thry.AvatarHelpers
                             "BC7 and DXT5 have the same VRAM size. BC7 is higher quality, DXT5 is smaller in download size.", MessageType.Info);
                         EditorGUILayout.Space(5);
 
-                        _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(Math.Min(500, _texturesList.Count * 30)));
+                        _scrollposTex = EditorGUILayout.BeginScrollView(_scrollposTex, GUILayout.Height(Math.Min(500, (_texturesList.Count > 0 ? 17 : 0) + _texturesList.Count * 30)));
                         for (int texIdx = 0; texIdx < _texturesList.Count; texIdx++)
                         {
                             TextureInfo texInfo = _texturesList[texIdx];
@@ -738,7 +738,7 @@ namespace Thry.AvatarHelpers
                     _meshesFoldout = EditorGUILayout.BeginFoldoutHeaderGroup(_meshesFoldout, $"Meshes  ({AvatarEvaluator.ToMebiByteString(_sizeAllMeshes)})");
                     if (_meshesFoldout)
                     {
-                        _scrollPosMesh = EditorGUILayout.BeginScrollView(_scrollPosMesh, GUILayout.Height(Math.Min(500, _meshesList.Count * 30)));
+                        _scrollPosMesh = EditorGUILayout.BeginScrollView(_scrollPosMesh, GUILayout.Height(Math.Min(500, (_meshesList.Count > 0 ? 17 : 0) + _meshesList.Count * 30)));
                         for (int mIdx = 0; mIdx < _meshesList.Count; mIdx++) {
                             MeshInfo meshInfo = _meshesList[mIdx];
                             if (_includeInactive || meshInfo.isActive)
@@ -831,7 +831,7 @@ namespace Thry.AvatarHelpers
             long size = 0;
             foreach (KeyValuePair<Texture, bool> t in textures)
                 size += CalculateTextureSize(t.Key, new TextureInfo()).size;
-            IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
+            IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer && r.GetComponent<MeshFilter>() ? r.GetComponent<MeshFilter>().sharedMesh : null);
             foreach (Mesh m in allMeshes)
             {
                 if (m == null) continue;
@@ -903,8 +903,8 @@ namespace Thry.AvatarHelpers
                 EditorUtility.DisplayProgressBar("Getting VRAM Data", "Getting Meshes", 0.5f);
                 //Meshes
                 Dictionary<Mesh, bool> meshes = new Dictionary<Mesh, bool>();
-                IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
-                IEnumerable<Mesh> activeMeshes = avatar.GetComponentsInChildren<Renderer>().Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer ? r.GetComponent<MeshFilter>().sharedMesh : null);
+                IEnumerable<Mesh> allMeshes = avatar.GetComponentsInChildren<Renderer>(true).Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer && r.GetComponent<MeshFilter>() ? r.GetComponent<MeshFilter>().sharedMesh : null);
+                IEnumerable<Mesh> activeMeshes = avatar.GetComponentsInChildren<Renderer>().Select(r => r is SkinnedMeshRenderer ? (r as SkinnedMeshRenderer).sharedMesh : r is MeshRenderer && r.GetComponent<MeshFilter>() ? r.GetComponent<MeshFilter>().sharedMesh : null);
                 foreach (Mesh m in allMeshes)
                 {
                     if (m == null) continue;
