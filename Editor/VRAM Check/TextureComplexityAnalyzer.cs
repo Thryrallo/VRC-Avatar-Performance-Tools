@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Thry.AvatarHelpers
 {
     /// <summary>
+    /// Based On and Inspired from /// https://github.com/Limitex/avatar-compressor
     /// Lightweight editor-only texture complexity estimator inspired by the metrics used by
     /// Avatar Compressor (luminance variance, edge strength, high-frequency detail, and detail
     /// density). It deliberately analyzes a small GPU-downsampled sample instead of requiring
